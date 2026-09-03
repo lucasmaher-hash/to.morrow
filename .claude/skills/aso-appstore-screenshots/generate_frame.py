@@ -11,12 +11,12 @@ from PIL import Image, ImageDraw, ImageChops
 # Width is ~80% of 1290 canvas, matching reference screenshots
 DEVICE_W = 1030
 DEVICE_H = 2800           # tall enough to bleed off any canvas
-DEVICE_CORNER_R = 77
+DEVICE_CORNER_R = 156
 BEZEL = 15
-SCREEN_CORNER_R = 62
-DI_W = 130               # Dynamic Island width
-DI_H = 38                # Dynamic Island height
-DI_TOP = 14              # offset from top of screen
+SCREEN_CORNER_R = 141
+DI_W = 284               # Dynamic Island width
+DI_H = 84                # Dynamic Island height
+DI_TOP = 25              # offset from top of screen
 
 SCREEN_W = DEVICE_W - 2 * BEZEL
 SCREEN_H = DEVICE_H - 2 * BEZEL

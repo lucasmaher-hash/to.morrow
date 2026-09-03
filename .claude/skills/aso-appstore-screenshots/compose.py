@@ -20,7 +20,7 @@ CANVAS_H = 2796
 DEVICE_W = 1030
 BEZEL = 15
 SCREEN_W = DEVICE_W - 2 * BEZEL    # 1000
-SCREEN_CORNER_R = 62
+SCREEN_CORNER_R = 141
 
 # ── Layout ──────────────────────────────────────────────────────────
 DEVICE_Y = 720                       # device top position (fixed)
@@ -36,7 +36,13 @@ MAX_TEXT_W = int(CANVAS_W * 0.92)
 MAX_VERB_W = int(CANVAS_W * 0.92)
 
 FONT_PATH = "/Library/Fonts/SF-Pro-Display-Black.otf"
+# Added locally: the shipped script hardcodes white text on a 1290x2796
+# canvas. shove.95 needs black on off-white at 6.9". Flags are optional,
+# so the script still behaves exactly as shipped when they are omitted.
 FRAME_PATH = os.path.join(os.path.dirname(__file__), "assets", "device_frame.png")
+TEXT_FILL = "white"
+VERB_FONT_PATH = None
+DESC_CAPS = True
 
 
 def hex_to_rgb(h):
@@ -60,15 +66,15 @@ def word_wrap(draw, text, font, max_w):
     return lines
 
 
-def fit_font(text, max_w, size_max, size_min):
+def fit_font(text, max_w, size_max, size_min, path=None):
     """Return the largest font size where text fits within max_w."""
     dummy = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     for size in range(size_max, size_min - 1, -4):
-        font = ImageFont.truetype(FONT_PATH, size)
+        font = ImageFont.truetype(path or FONT_PATH, size)
         bbox = dummy.textbbox((0, 0), text, font=font)
         if (bbox[2] - bbox[0]) <= max_w:
             return font
-    return ImageFont.truetype(FONT_PATH, size_min)
+    return ImageFont.truetype(path or FONT_PATH, size_min)
 
 
 def draw_centered(draw, y, text, font, max_w=None):
@@ -78,7 +84,7 @@ def draw_centered(draw, y, text, font, max_w=None):
         h = bbox[3] - bbox[1]
         # Use anchor="mt" (middle-top) for pixel-perfect horizontal centering
         # Adjust y by bbox[1] offset so text top aligns with intended position
-        draw.text((CANVAS_W // 2, y - bbox[1]), line, fill="white", font=font, anchor="mt")
+        draw.text((CANVAS_W // 2, y - bbox[1]), line, fill=TEXT_FILL, font=font, anchor="mt")
         y += h + DESC_LINE_GAP
     return y
 
@@ -91,7 +97,8 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path):
     draw = ImageDraw.Draw(canvas)
 
     # ── 2. Measure text, then center between top of canvas & device ─
-    verb_font = fit_font(verb.upper(), MAX_VERB_W, VERB_SIZE_MAX, VERB_SIZE_MIN)
+    verb_font = fit_font(verb.upper(), MAX_VERB_W, VERB_SIZE_MAX, VERB_SIZE_MIN,
+                         path=VERB_FONT_PATH)
     desc_font = ImageFont.truetype(FONT_PATH, DESC_SIZE)
 
     # Measure total text block height (dry run at y=0)
@@ -99,7 +106,8 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path):
     m_y = 0
     m_y = draw_centered(dummy, m_y, verb.upper(), verb_font)
     m_y += VERB_DESC_GAP
-    text_height = draw_centered(dummy, m_y, desc.upper(), desc_font, max_w=MAX_TEXT_W)
+    text_height = draw_centered(dummy, m_y, desc.upper() if DESC_CAPS else desc,
+                                desc_font, max_w=MAX_TEXT_W)
 
     # Device at fixed Y; text starts at fixed position
     device_y = DEVICE_Y
@@ -109,7 +117,8 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path):
     y = text_top
     y = draw_centered(draw, y, verb.upper(), verb_font)
     y += VERB_DESC_GAP
-    draw_centered(draw, y, desc.upper(), desc_font, max_w=MAX_TEXT_W)
+    draw_centered(draw, y, desc.upper() if DESC_CAPS else desc,
+                  desc_font, max_w=MAX_TEXT_W)
     device_x = (CANVAS_W - DEVICE_W) // 2
     screen_x = device_x + BEZEL
     screen_y = device_y + BEZEL
@@ -162,11 +171,37 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path):
 def main():
     p = argparse.ArgumentParser(description="Compose App Store screenshot")
     p.add_argument("--bg", required=True, help="Background hex colour (#E31837)")
+    p.add_argument("--fg", default="white", help="Headline colour (default white)")
+    p.add_argument("--width", type=int, default=1290)
+    p.add_argument("--height", type=int, default=2796)
+    p.add_argument("--font", default=None)
+    p.add_argument("--verb-font", default=None, help="Heavier face for the key word")
+    p.add_argument("--no-caps", action="store_true", help="Leave the descriptor as typed")
     p.add_argument("--verb", required=True, help="Action verb (TRACK)")
     p.add_argument("--desc", required=True, help="Benefit descriptor (TRADING CARD PRICES)")
     p.add_argument("--screenshot", required=True, help="Simulator screenshot path")
     p.add_argument("--output", required=True, help="Output file path")
     args = p.parse_args()
+
+    global TEXT_FILL, CANVAS_W, CANVAS_H, MAX_TEXT_W, MAX_VERB_W, FONT_PATH
+    global VERB_FONT_PATH, DESC_CAPS
+    TEXT_FILL = args.fg
+    if args.font:
+        FONT_PATH = args.font
+    VERB_FONT_PATH = args.verb_font
+    DESC_CAPS = not args.no_caps
+    if (args.width, args.height) != (CANVAS_W, CANVAS_H):
+        # Scale the layout with the canvas rather than letting the device and
+        # type keep 6.7" proportions on a 6.9" sheet.
+        scale = args.height / CANVAS_H
+        CANVAS_W, CANVAS_H = args.width, args.height
+        globals()["DEVICE_W"] = int(DEVICE_W * scale)
+        globals()["DEVICE_Y"] = int(DEVICE_Y * scale)
+        globals()["SCREEN_W"] = globals()["DEVICE_W"] - 2 * BEZEL
+        for k in ("VERB_SIZE_MAX", "VERB_SIZE_MIN", "DESC_SIZE"):
+            globals()[k] = int(globals()[k] * scale)
+    MAX_TEXT_W = int(CANVAS_W * 0.92)
+    MAX_VERB_W = int(CANVAS_W * 0.92)
 
     compose(args.bg, args.verb, args.desc, args.screenshot, args.output)
 
