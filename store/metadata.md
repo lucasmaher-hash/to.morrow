@@ -3,6 +3,11 @@
 Copy each block into the matching field. Character limits are Apple's; the
 counts in brackets are what these drafts actually use.
 
+**Updated 2026-09-03.** All copy below describes the current app: three
+lists (Today / Tomorrow / Soon), the SkeuKit design system, and no Windows
+95 references. It deliberately doesn't describe the visual design — copy is
+function-only, per founder direction.
+
 ---
 
 ## Name  *(30 max)*
@@ -15,14 +20,9 @@ shove.95
 ## Subtitle  *(30 max)*
 
 ```
-A to-do list from 1995
+Swipe tasks between days
 ```
-[22]
-
-Alternatives, if that one reads as too flippant:
-
-- `Four places. One swipe.` [23]
-- `Tasks that shove sideways` [25]
+[24]
 
 ## Category
 
@@ -39,57 +39,52 @@ with anyone.
 ## Promotional text  *(170 max — editable without a new build)*
 
 ```
-Four tabs, one gesture. Shove a task to tomorrow, to this week, or out of the way entirely — and let the ones that matter shout at you in red.
+Swipe a task to tomorrow. Go Live pins it to your Lock Screen. Switch between Work and Personal. No account, no ads — just yours, synced through iCloud.
 ```
-[141]
+[152]
 
 ---
 
 ## Description  *(4000 max)*
 
 ```
-shove.95 is a to-do list that looks like it came free with a beige computer.
+shove.95 is a to-do list with three lists: Today, Tomorrow, and Soon.
 
-Everything lives in four places: Today, Tomorrow, Week, and General. A task is always in exactly one of them, so nothing can quietly disappear into a list you forgot you made.
+SWIPE TO MOVE TASKS
 
-MOVE THINGS WITH ONE GESTURE
+Not going to get something done today? Swipe it right and it moves to tomorrow. Swipe left to bring it back.
 
-Swipe a task right and it shoves forward — Today becomes Tomorrow, Tomorrow becomes this Week. Swipe left and it comes back. No date pickers, no menus, no dragging a card across a board. The whole app is built around that one motion.
+GO LIVE
 
-WHAT ELSE IT DOES
+Pin whatever you're working on to your Lock Screen. Tap Go Live on a task and it stays there until you tick it off — no Home Screen widget, no extra app to check.
 
-• Mark a task important and it turns red, so the thing you're avoiding is the thing you see first
-• Attach photos — a parcel label, a whiteboard, a receipt — and open them in a proper little window
-• Zoom into a photo, and select text inside it: phone numbers, addresses, opening hours
-• Overdue tasks roll forward to Today by themselves, instead of rotting in the past
-• Completed tasks tidy themselves into an Archive at the end of the day
-• Separate workspaces, so work and home don't share a list
-• Five colour schemes, and a switch to the normal iOS font if the pixel type is hard to read
-• Rename the tabs to whatever you actually call them
+CHANGE WORKSPACES
 
-IT SYNCS, AND IT COLLECTS NOTHING
+Keep Personal and Work on separate lists, and switch between them whenever you need to.
 
-Turn on iCloud and your tasks and photos follow you between your iPhone and iPad, through your own private iCloud account. There is no account to make, no email to hand over, no analytics, no advertising, and no server belonging to us — because there is no us. Your data is on your device and in your iCloud, and nowhere else.
+PRIVATE
 
-WHY IT LOOKS LIKE THAT
-
-Because software used to tell you what it was doing. A button looked pressable. A window had edges. Nothing faded politely into the background hoping you wouldn't notice it. shove.95 is a small argument that the old interface was clearer, on a device that could use some clarity.
+No account, no email, no password — nothing to sign up for. Turn on iCloud and your tasks and photos sync between your own devices, privately. No analytics, no ads, no third-party code, no server run by us.
 ```
-[~1730]
+[698]
 
 ---
 
 ## Keywords  *(100 max, comma-separated, no spaces after commas)*
 
 ```
-todo,task,list,retro,win95,windows,pixel,90s,nostalgia,productivity,reminders,swipe,simple,offline
+todo,task,checklist,planner,productivity,swipe,reminders,lockscreen,workspace,offline
 ```
-[97]
+[85]
 
 Notes on the choices:
 - No "shove" or "95" — your own app name is already indexed, spending
   characters on it is waste.
 - No plurals where the singular already matches ("task" also matches "tasks").
+- No "retro"/"win95"/"pixel"/"90s" — the Windows 95 aesthetic was removed
+  2026-08-22 in favour of the SkeuKit design system (see note below); those
+  keywords would now attract the wrong audience and no longer describe the
+  app.
 - "offline" and "simple" are what people search when they're sick of
   subscription to-do apps, which is the audience for this.
 
@@ -124,25 +119,21 @@ privacy policy needs updating with it.
 
 ## Screenshots
 
-Six are in `store/screenshots/`, all 1320 × 2868 (6.9", iPhone 17 Pro Max),
-which is the only size App Store Connect now requires — it scales them down
-for smaller devices itself.
+⚠️ `store/screenshots/` (`01-today.png` … `06-scheme.png`) shows the **Windows
+95 app and must not be uploaded** — that interface no longer exists (removed
+2026-08-22 in favour of SkeuKit) and Apple will reject on Guideline 2.3.3 for
+showing software that isn't in the build.
 
-| File | Shows |
-|---|---|
-| `01-today.png` | Today, with an overdue task, two important ones and one ticked off |
-| `02-week.png` | The Week tab |
-| `03-photo.png` | A task with a photo attached |
-| `04-viewer.png` | The photo open in its own window |
-| `05-settings.png` | Colour schemes, typeface switch, renamed tabs, workspaces |
-| `06-scheme.png` | The same list in a different colour scheme |
+`store/screenshots-new/` has three fresh SkeuKit captures (`01-today.png`,
+`02-tomorrow.png`, `03-soon.png`) but isn't the final set.
 
-Upload at least `01`, `04` and `06` — first, a clear look at the actual list;
-then the one feature nobody expects; then proof it isn't only blue.
-
-⚠️ `05-settings.png` reads "iCloud: not signed in" along the bottom, because
-the screenshots were taken on a clean simulator deliberately kept away from a
-real account. Either skip that one, or retake it on a signed-in device.
+The current working set is six composited frames in
+`AppStore_screenshots_Shove.95/final_images/` (`Frame 1.png` … `Frame 6.png`),
+fixed to 1320 × 2868 (6.9", iPhone 17 Pro Max) with the alpha channel
+flattened — the only size App Store Connect requires; it scales down for
+smaller devices itself. Upload the 6.9" Display tab, then use "Keep using
+6.9" Display" so ASC reuses them for the other sizes instead of asking for
+separately-sized ones.
 
 ---
 

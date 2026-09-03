@@ -1,5 +1,23 @@
 # Product Vision — shove.95
 
+> ⚠️ **Superseded, 2026-09-03.** The Windows 95 pixel interface described
+> throughout this document (bevels, taskbar navigation, 2× pixel-unit
+> derivation, W95FA as the interface font, "Windows 95 rebuilt at 2× pixel
+> scale") was fully removed from the app on 2026-08-22 and replaced by
+> **SkeuKit**, a soft-skeuomorphic design system (`shove95/shove95/SkeuKit/`,
+> `docs/SKEUOMORPHIC_DESIGN_SYSTEM.md`). The four buckets are now three —
+> Today, Tomorrow, and Soon (renamed from General; Week was cut 2026-08-17)
+> — plus a separate Live panel. W95FA survives only as an optional "Retro"
+> chrome typeface, not the app's identity.
+>
+> The problem statement, personas, JTBD, and swipe-gesture value proposition
+> below are still substantially accurate. The **visual-design claims, brand
+> personality, messaging framework, and elevator pitches are not** — they
+> were written for the Windows 95 aesthetic specifically and have not been
+> rewritten for SkeuKit, since that's a brand-voice decision for the founder
+> to make, not one to invent here. Treat any passage below that describes
+> *how the app looks* as historical, not current.
+
 ## 1. Vision & Mission
 
 ### Vision Statement

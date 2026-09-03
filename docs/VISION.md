@@ -4,6 +4,16 @@
 > generating product-vision.md, prd.md, and product-roadmap.md. Edit it directly
 > and re-run the Product Planner to regenerate downstream documents.
 
+> ⚠️ **Superseded, 2026-09-03.** Written before the 2026-08-22 pivot away
+> from the Windows 95 pixel interface to **SkeuKit** (soft skeuomorphism,
+> `shove95/shove95/SkeuKit/`), and before Week/General were replaced by a
+> single "Soon" bucket (2026-08-17). "Four time buckets" and every Windows
+> 95 specific below (2× pixel scale, taskbar-as-navigation, W95FA as *the*
+> interface type) describe the old build. The core problem/audience/JTBD
+> reasoning still holds; re-running the Product Planner against the current
+> app would be the right way to regenerate this properly rather than
+> hand-patching it here.
+
 **Created:** 2026-08-03
 **Updated:** 2026-08-03
 
