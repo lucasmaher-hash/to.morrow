@@ -886,39 +886,75 @@ final class TaskStore {
         let tomorrow = DateEngine.startOfTomorrow(now: now(), calendar: calendar)
         // Four days out — General by tab, but it keeps its day.
         let week = calendar.date(byAdding: .day, value: 4, to: today)
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
-        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: today)!
+        // Two months out, so Soon shows a second dated group well clear of the
+        // first — the founder's "Tax return" row.
+        let farOff = calendar.date(byAdding: .day, value: 60, to: today)
 
-        // (title, due, important, completed, photo)
-        let rows: [(String, Date?, Bool, Bool, Data?)] = [
-            ("call the dentist back",         twoDaysAgo, true,  false, nil),
-            ("pick up the parcel",            yesterday,  false, false, DemoPhotos.parcelLabel()),
-            ("sort out the bike light",       yesterday,  true,  false, DemoPhotos.receipt()),
-            ("finish the ergonomics reading", today,      false, false, DemoPhotos.lectureNote()),
-            ("book train to Hamburg",         today,      true,  false, nil),
-            ("water the plants",              today,      false, true,  nil),
-            ("send Marie the photos",         tomorrow,   false, false, nil),
-            ("renew the Bahncard",            tomorrow,   false, false, nil),
-            ("dentist follow-up",             week,       false, false, nil),
-            ("read the Rams book",            nil,        false, false, nil),
-            ("find a decent desk lamp",       nil,        false, false, nil),
+        // (title, due, important, completed, photos, order)
+        //
+        // TRANSCRIBED FROM THE FOUNDER'S OWN LIST, read out of the simulator's
+        // store rather than off a screenshot (2026-09-01) — titles,
+        // capitalisation, dates, flags, photo count and sort order exactly as
+        // they stood. Nothing here is tidied: not the lower-case first words,
+        // not the two ticked-off rows, not the empty photo slot on the bike
+        // light. A previous pass "helpfully" restored a row the founder had
+        // deleted and corrected a title, which is the opposite of what a
+        // screenshot seed is for. This list is theirs; leave it alone.
+        let rows: [(String, Date?, Bool, Bool, [Data], Double)] = [
+            ("call back dentist",                  today,    true,  false, [DemoPhotos.dentistMap()],   0),
+            ("fix bike light",                     today,    true,  false, [],                          1),
+            ("pick up parcel",                     today,    false, false, [DemoPhotos.parcelLabel()],  1.5),
+            ("organize trip to Asia",              today,    false, false, [],                          2),
+            ("water the plants",                   today,    false, true,  [],                          5),
+            ("book train to Hamburg",              today,    true,  true,  [],                          6),
+            ("Prepare presentation for work",      tomorrow, false, false, [],                          6),
+            ("Send Marie vacation photos",         tomorrow, false, false, [],                          7),
+            ("Renew public transport subscription", tomorrow, false, false, [],                         8),
+            ("Dentist follow-up",                  week,     false, false, [],                          9),
+            ("Return desk lamp",                   nil,      false, false, [],                         11),
+            ("Send out job applications",          nil,      false, false, [],                         12),
+            ("Organize exchange semester",         nil,      false, false, [],                         14),
+            ("Tax return",                         farOff,   false, false, [],                         15),
         ]
 
-        var order = 0.0
-        for (title, due, important, completed, photo) in rows {
+        // The WORK workspace gets its own list (founder direction 2026-09-01).
+        // Screenshots that show the workspace switcher want something behind
+        // the second name — an empty list there says the feature is a promise
+        // rather than a place. No photos: work tasks are words, and the photo
+        // story is already told in Personal.
+        let workRows: [(String, Date?, Bool, Double)] = [
+            ("send the invoice",             today,    true,  0),
+            ("review the pull request",      today,    false, 1),
+            ("write standup notes",          today,    false, 2),
+            ("book the meeting room",        tomorrow, false, 3),
+            ("reply to the recruiter",       tomorrow, false, 4),
+            ("prep the quarterly numbers",   week,     true,  5),
+            ("update the team handbook",     nil,      false, 6),
+            ("chase the signed contract",    nil,      false, 7),
+        ]
+        for (title, due, important, order) in workRows {
+            let task = TaskItem()
+            task.title = title
+            task.dueDate = due
+            task.isImportant = important
+            task.workspaceID = Workspace.workID
+            task.sortOrder = order
+            context.insert(task)
+        }
+
+        for (title, due, important, completed, photos, order) in rows {
             let task = TaskItem()
             task.title = title
             task.dueDate = due
             task.isImportant = important
             task.workspaceID = workspaceID
             task.sortOrder = order
-            order += 1
             if completed {
                 task.isCompleted = true
                 task.completedAt = now()
             }
             context.insert(task)
-            if let photo { addPhoto(task, data: photo) }
+            for photo in photos { addPhoto(task, data: photo) }
         }
         commit()
     }
