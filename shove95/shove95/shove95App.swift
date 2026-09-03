@@ -118,6 +118,11 @@ struct shove95App: App {
                 // Seeding by launch argument keeps the debug controls off the
                 // screen: `simctl launch … -seedFillers YES`.
                 .task {
+                    // FIRST, so `-wipeAll YES -seedDemo YES` reads as "start
+                    // clean, then seed" rather than racing the two.
+                    if UserDefaults.standard.bool(forKey: "wipeAll") {
+                        store.wipeAllTasks()
+                    }
                     if UserDefaults.standard.bool(forKey: "seedFillers") {
                         store.seedScrollFillers()
                     }

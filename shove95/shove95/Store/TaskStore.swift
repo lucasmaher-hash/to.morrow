@@ -843,6 +843,31 @@ final class TaskStore {
     // MARK: - Debug seeding
 
     #if DEBUG
+    /// `-wipeAll YES` empties the store: every task in every workspace, with
+    /// their photos cascading behind them (TaskItem owns TaskPhoto with
+    /// `deleteRule: .cascade`). The WORKSPACES themselves stay — they are
+    /// structure rather than content, and `seedWorkspacesIfNeeded` would only
+    /// put them back on the next launch.
+    ///
+    /// Unscoped on purpose. Every ordinary query runs through
+    /// `allTasksSorted`, which filters to the active workspace; a wipe that
+    /// did the same would silently leave the other workspace's rows behind
+    /// and read as though it had failed.
+    ///
+    /// Under CloudKit these deletions are the POINT: SwiftData propagates
+    /// them to the private database and on to every other device. Deleting
+    /// the app instead accomplishes nothing — a reinstall pulls the same rows
+    /// straight back down out of iCloud.
+    func wipeAllTasks() {
+        let all = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        for task in all { context.delete(task) }
+        // The undo slot holds a snapshot of a row that no longer exists, and
+        // a bulk wipe is not something a single-slot undo can honestly offer
+        // to reverse.
+        lastAction = nil
+        commit()
+    }
+
     /// Sample data covering every tier: important, overdue, today, tomorrow,
     /// week, general (TASK-015 verify).
     func seedDebugData() {
