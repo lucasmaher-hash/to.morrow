@@ -32,7 +32,7 @@ import Shove95Kit
 @Observable
 final class LiveActivityController {
 
-    /// True when iOS has Live Activities switched off for shove.95. The pin
+    /// True when iOS has Live Activities switched off for to morrow. The pin
     /// still works — it is app state — but nothing reaches the Lock Screen,
     /// and the user is told once (founder direction 2026-08-16).
     var activitiesDisabled: Bool {

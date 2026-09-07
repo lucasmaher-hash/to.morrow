@@ -313,7 +313,7 @@ struct SkeuAboutView: View {
             // section heading, which the panel used to supply, stays.
             VStack(alignment: .leading, spacing: SkeuSpace.lg) {
                 VStack(alignment: .leading, spacing: SkeuSpace.sm) {
-                    Text("shove.95")
+                    Text("to morrow")
                         .font(SkeuFont.display)
                         .foregroundStyle(skeu.ink)
 
