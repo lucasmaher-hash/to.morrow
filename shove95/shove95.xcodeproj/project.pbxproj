@@ -348,17 +348,17 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = shove95/shove95.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "to morrow";
+				INFOPLIST_KEY_CFBundleDisplayName = "to.morrow";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSCameraUsageDescription = "to morrow uses the camera only when you tap the camera button while editing a task, so you can attach a photo to it — a parcel label, a whiteboard, a receipt. The photo is stored with that task on your device and in your private iCloud, and is never sent anywhere else.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "to morrow opens your photo library only when you choose to attach a picture to a task, and reads just the one you pick — for example a screenshot of an address you need later. It never scans your library, and the photo stays on your device and in your private iCloud.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "to.morrow uses the camera only when you tap the camera button while editing a task, so you can attach a photo to it — a parcel label, a whiteboard, a receipt. The photo is stored with that task on your device and in your private iCloud, and is never sent anywhere else.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "to.morrow opens your photo library only when you choose to attach a picture to a task, and reads just the one you pick — for example a screenshot of an address you need later. It never scans your library, and the photo stays on your device and in your private iCloud.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -397,17 +397,17 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = shove95/shove95.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "to morrow";
+				INFOPLIST_KEY_CFBundleDisplayName = "to.morrow";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSCameraUsageDescription = "to morrow uses the camera only when you tap the camera button while editing a task, so you can attach a photo to it — a parcel label, a whiteboard, a receipt. The photo is stored with that task on your device and in your private iCloud, and is never sent anywhere else.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "to morrow opens your photo library only when you choose to attach a picture to a task, and reads just the one you pick — for example a screenshot of an address you need later. It never scans your library, and the photo stays on your device and in your private iCloud.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "to.morrow uses the camera only when you tap the camera button while editing a task, so you can attach a photo to it — a parcel label, a whiteboard, a receipt. The photo is stored with that task on your device and in your private iCloud, and is never sent anywhere else.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "to.morrow opens your photo library only when you choose to attach a picture to a task, and reads just the one you pick — for example a screenshot of an address you need later. It never scans your library, and the photo stays on your device and in your private iCloud.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -443,11 +443,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ShoveWidgets-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "to morrow Widgets";
+				INFOPLIST_KEY_CFBundleDisplayName = "to.morrow Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -473,11 +473,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ShoveWidgets-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "to morrow Widgets";
+				INFOPLIST_KEY_CFBundleDisplayName = "to.morrow Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
