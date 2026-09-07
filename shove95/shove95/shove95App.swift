@@ -15,23 +15,7 @@ struct shove95App: App {
     @State private var store: TaskStore
     @State private var settings = AppSettings()
     @State private var sync = SyncStatus()
-    /// True from the first frame: the cover plays on every COLD launch, and
-    /// a warm return doesn't re-run the process. See LaunchCover.
-    @State private var showLaunchCover = true
-    /// The store has answered.
-    @State private var launchSettled = false
-    /// The animation has finished.
-    @State private var coverElapsed = false
     @Environment(\.scenePhase) private var scenePhase
-
-    /// The cover leaves when the mark has finished assembling AND the list is
-    /// ready to receive the reader. Called from both tasks; whichever
-    /// finishes last is the one that does it.
-    @MainActor
-    private func dismissCoverIfReady() {
-        guard launchSettled, coverElapsed, showLaunchCover else { return }
-        withAnimation(.easeOut(duration: 0.35)) { showLaunchCover = false }
-    }
 
     init() {
         let (container, mode) = Self.makeContainer()
@@ -142,28 +126,12 @@ struct shove95App: App {
                 }
                 #endif
 
-                // The cover is a SIBLING of the shell, not a child, so it
-                // does not inherit the shell's environment — and it now needs
-                // the settings to know which theme's colour to wear.
-                if showLaunchCover {
-                    LaunchCover().environment(settings)
-                }
-            }
-            // TWO conditions, and the cover waits for both: the animation has
-            // finished, and the store has answered. Either alone leaves a
-            // seam — leaving early cuts the mark off mid-assembly, and leaving
-            // on the clock alone can drop the reader onto an empty list.
-            .task {
-                try? await Task.sleep(for: .seconds(LaunchCover.duration))
-                coverElapsed = true
-                dismissCoverIfReady()
             }
             .task {
-                // "Ready" = the first query has returned. Cheap, and it is the
-                // thing that actually takes time on a cold CloudKit launch.
+                // Warms the store. The first query is the thing that actually
+                // takes time on a cold CloudKit launch, so it is worth firing
+                // before the list asks for it — but nothing waits on it now.
                 _ = store.tasks(in: .today)
-                launchSettled = true
-                dismissCoverIfReady()
             }
         }
         .modelContainer(container)
