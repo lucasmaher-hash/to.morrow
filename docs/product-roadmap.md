@@ -38,7 +38,7 @@
 
 - [x] **TASK-002** — (founder) Initialize git and push the repo
   Files: `.gitignore`, `README.md`
-  Notes: DONE 2026-08-03. Repo: https://github.com/lucasmaher-hash/shove-95 (public), branch `main`. gh CLI installed and authenticated as `lucasmaher-hash`.
+  Notes: DONE 2026-08-03. Repo: https://github.com/lucasmaher-hash/to.morrow (public), branch `main`. gh CLI installed and authenticated as `lucasmaher-hash`.
 
 - [x] **TASK-003** — Create the Shove95Kit local package and wire it into the app
   Files: `Shove95Kit/Package.swift`, `Shove95Kit/Sources/Shove95Kit/Shove95Kit.swift`, `Shove95Kit/Tests/Shove95KitTests/Shove95KitTests.swift`
@@ -336,7 +336,7 @@
   Files: `Shove95/Screens/AboutView.swift`
   Notes: `About - shove.95` window: app name, version+build (from bundle), `Typeface: W95FA by Alina Sava (SIL OFL)`, `Privacy policy` link (opens Safari to the TASK-056 URL), © year Lucas Maher. Terse voice — no marketing copy. Verify: link opens; version matches target settings.
 
-- [x] **TASK-056** — Privacy policy live *(https://lucasmaher-hash.github.io/shove-95/privacy.html)*
+- [x] **TASK-056** — Privacy policy live *(https://lucasmaher-hash.github.io/to.morrow/privacy.html)*
   `docs/privacy.md` is written. Not published: it is a legal statement made in
   Lucas's name, so it wants his read before it goes on the web. Enable GitHub
   Pages on /docs to serve it at the URL AboutView already links to.

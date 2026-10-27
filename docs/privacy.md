@@ -3,13 +3,13 @@ layout: page
 title: Privacy Policy
 ---
 
-# Privacy Policy — shove.95
+# Privacy Policy — to.morrow
 
 **Last updated:** 1 September 2026
 
 ## The short version
 
-shove.95 collects nothing. There is no analytics, no advertising, no tracking,
+to.morrow collects nothing. There is no analytics, no advertising, no tracking,
 no account, and no server belonging to the developer. Your tasks and photos are
 stored on your device, and — if you turn on iCloud sync — in your own private
 iCloud account, which the developer cannot read.
@@ -75,4 +75,4 @@ and the date above will change.
 ## Contact
 
 Questions about this policy: open an issue at
-<https://github.com/lucasmaher-hash/shove-95/issues>.
+<https://github.com/lucasmaher-hash/to.morrow/issues>.

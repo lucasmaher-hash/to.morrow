@@ -1,4 +1,4 @@
-# App Store Connect — metadata for shove.95
+# App Store Connect — metadata for to.morrow
 
 Copy each block into the matching field. Character limits are Apple's; the
 counts in brackets are what these drafts actually use.
@@ -13,9 +13,9 @@ function-only, per founder direction.
 ## Name  *(30 max)*
 
 ```
-shove.95
+to.morrow
 ```
-[8]
+[9]
 
 ## Subtitle  *(30 max)*
 
@@ -48,7 +48,7 @@ Swipe a task to tomorrow. Go Live pins it to your Lock Screen. Switch between Wo
 ## Description  *(4000 max)*
 
 ```
-shove.95 is a to-do list with three lists: Today, Tomorrow, and Soon.
+to.morrow is a to-do list with three lists: Today, Tomorrow, and Soon.
 
 SWIPE TO MOVE TASKS
 
@@ -94,9 +94,9 @@ Notes on the choices:
 
 | Field | Value |
 |---|---|
-| Privacy Policy URL *(required)* | `https://lucasmaher-hash.github.io/shove-95/privacy.html` |
-| Support URL *(required)* | `https://github.com/lucasmaher-hash/shove-95/issues` |
-| Marketing URL *(optional)* | `https://lucasmaher-hash.github.io/shove-95/` |
+| Privacy Policy URL *(required)* | `https://lucasmaher-hash.github.io/to.morrow/privacy.html` |
+| Support URL *(required)* | `https://github.com/lucasmaher-hash/to.morrow/issues` |
+| Marketing URL *(optional)* | `https://lucasmaher-hash.github.io/to.morrow/` |
 
 ---
 

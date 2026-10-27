@@ -302,7 +302,7 @@ struct SkeuAboutView: View {
 
     /// Published alongside the App Store listing.
     private static let privacyPolicyURL =
-        URL(string: "https://lucasmaher-hash.github.io/shove-95/privacy.html")!
+        URL(string: "https://lucasmaher-hash.github.io/to.morrow/privacy.html")!
 
     var body: some View {
         SkeuSheet(title: "About", onClose: onClose) {
