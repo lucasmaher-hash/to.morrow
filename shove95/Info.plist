@@ -12,5 +12,12 @@
 	</array>
 	<key>ShoveCloudKitEnabled</key>
 	<true/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<!-- Exempt: the app ships no encryption of its own. Answering here rather
+	     than in App Store Connect keeps every upload from stalling on the
+	     export-compliance questionnaire. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

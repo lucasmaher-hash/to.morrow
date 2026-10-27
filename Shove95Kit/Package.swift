@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Shove95Kit",
     platforms: [
-        .iOS(.v26),
+        .iOS(.v18),
         .macOS(.v26),   // future Mac app shares this package
     ],
     products: [

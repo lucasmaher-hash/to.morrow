@@ -1,11 +1,15 @@
 import Foundation
 
-/// The four time buckets, ordered as the line `today → tomorrow → week → general`.
+/// The three time buckets, ordered as the line `today → tomorrow → general`.
+///
+/// `week` was removed on 2026-08-17 (founder direction). It was never storage
+/// — a task dated four days out simply reports `general` now and KEEPS its
+/// date, so the chip still says "Fri" and the rollover still walks it into
+/// Tomorrow and then Today when its day arrives. Nothing was lost but a tab.
 /// Buckets are *filters over a task's date*, never storage (PRD §3).
 public enum Bucket: String, CaseIterable, Sendable, Codable {
     case today
     case tomorrow
-    case week
     case general
 
     /// The line, in order. `CaseIterable` order is the source of truth.
@@ -15,18 +19,27 @@ public enum Bucket: String, CaseIterable, Sendable, Codable {
         switch self {
         case .today: "Today"
         case .tomorrow: "Tomorrow"
-        case .week: "Week"
-        case .general: "General"
+        // "Soon", not "General" (founder direction 2026-08-17). The tab holds
+        // the undated AND everything scheduled past tomorrow, so it is about
+        // WHEN rather than about being unclassified.
+        case .general: "Soon"
         }
     }
 
-    /// Abbreviated taskbar label for the 4× accessibility scale (FR-015).
+    /// The label to wear when the full name no longer fits (FR-015).
+    ///
+    /// Only `tomorrow` actually shortens: at the largest text sizes "Today"
+    /// and "Soon" still fit their share of the row, and abbreviating a word
+    /// that fits costs legibility for nothing. The other two keep their names
+    /// so the caller can ask every bucket the same question.
+    ///
+    /// "Tmw" rather than the old "Tom" (founder direction 2026-09-01): "Tom"
+    /// reads as a name.
     public var shortName: String {
         switch self {
-        case .today: "Tod"
-        case .tomorrow: "Tom"
-        case .week: "Wk"
-        case .general: "Gen"
+        case .today: "Today"
+        case .tomorrow: "Tmw"
+        case .general: "Soon"
         }
     }
 }
@@ -67,22 +80,17 @@ extension Bucket {
     /// (`<` toward Today, `>` toward General); one arrow for the nearer shown
     /// destination, two for the further. Locked table from PRD §3:
     ///
-    ///   today    → `> Week`, `>> General`
-    ///   tomorrow → `> General`
-    ///   week     → `< Today`
-    ///   general  → `< Tomorrow`, `<< Today`
+    ///   today    → `>> Soon`
+    ///   tomorrow → (nothing: both neighbours are one swipe away)
+    ///   general  → `<< Today`
     public var menuDestinations: [MenuDestination] {
         switch self {
         case .today:
-            [MenuDestination(label: "> Week", bucket: .week),
-             MenuDestination(label: ">> General", bucket: .general)]
+            [MenuDestination(label: ">> Soon", bucket: .general)]
         case .tomorrow:
-            [MenuDestination(label: "> General", bucket: .general)]
-        case .week:
-            [MenuDestination(label: "< Today", bucket: .today)]
+            []
         case .general:
-            [MenuDestination(label: "< Tomorrow", bucket: .tomorrow),
-             MenuDestination(label: "<< Today", bucket: .today)]
+            [MenuDestination(label: "<< Today", bucket: .today)]
         }
     }
 }

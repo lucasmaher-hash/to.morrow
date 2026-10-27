@@ -24,6 +24,31 @@ public final class TaskItem {
     /// gets placed again the next time it goes overdue. Prevents re-placing a
     /// task the user has dragged (PRD §3 placement table).
     public var overduePlaced: Bool = false
+    /// The one task pinned to the Lock Screen and Dynamic Island — the
+    /// founder calls this "active" (2026-08-16).
+    ///
+    /// App-wide exactly one, across every workspace: the question it answers
+    /// is "what is the one thing right now", and that is not a per-folder
+    /// question. `TaskStore.pin(_:)` is the only writer and enforces it.
+    ///
+    /// Named `isPinned` rather than `isActive` because the file that acts on
+    /// it also holds ActivityKit's `Activity`, and two different meanings of
+    /// "active" in one place is how bugs get written. It SYNCS: pin on the
+    /// phone and the iPad's Lock Screen shows it too.
+    public var isPinned: Bool = false
+    /// This task IS the live note — it lives in the Live section and nowhere
+    /// else (founder direction 2026-08-17).
+    ///
+    /// It is the one deliberate hole in the "tabs are total filters" rule.
+    /// Everything else maps to exactly one tab at every moment; a live note
+    /// maps to none, because it is not a thing you scheduled — it is the
+    /// thing you are doing. Ticking it on the Lock Screen completes it like
+    /// any other task, so it still reaches the archive.
+    ///
+    /// Separate from `isPinned`, which now means only "showing on the Lock
+    /// Screen right now". The switch in the Live section turns that off and
+    /// leaves the text in the box.
+    public var isLiveNote: Bool = false
     // ── Photos ──────────────────────────────────────────────────────────
     // Each photo is its OWN record (TASK-050). The previous shape — one
     // `Data?` plus an `[Data]` array — could not go to CloudKit: an array of

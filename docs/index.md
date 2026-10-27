@@ -1,9 +1,9 @@
 ---
 layout: page
-title: shove.95
+title: to.morrow
 ---
 
-# shove.95
+# to.morrow
 
 A to-do list that looks like it came free with a beige computer.
 
@@ -12,4 +12,4 @@ between them with a swipe. Nothing is collected, and nothing leaves your
 device except into your own iCloud, if you ask it to.
 
 - [Privacy Policy](privacy.html)
-- [Source on GitHub](https://github.com/lucasmaher-hash/shove-95)
+- [Source on GitHub](https://github.com/lucasmaher-hash/to.morrow)

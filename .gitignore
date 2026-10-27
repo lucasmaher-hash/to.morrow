@@ -18,3 +18,7 @@ DerivedData/
 *.png
 *.mov
 !shove95/**/Assets.xcassets/**/*.png
+# The App Store listing images are a deliverable, not debug output — losing
+# them to the blanket rule above meant they lived on one machine and nowhere
+# else.
+!store/screenshots/*.png

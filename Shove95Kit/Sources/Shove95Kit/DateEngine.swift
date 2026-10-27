@@ -25,25 +25,6 @@ public enum DateEngine {
         calendar.date(byAdding: .day, value: 2, to: startOfToday(now: now, calendar: calendar))!
     }
 
-    // MARK: - Week horizon (the Sunday that "Week" assigns)
-
-    /// The week ends on Sunday by definition — locked in the plan, independent
-    /// of locale. Returns the Sunday of the current week if it is still
-    /// *after tomorrow* (i.e. reachable by the Week tab); otherwise the Sunday
-    /// after that. Encodes the Fri/Sat/Sun rollover:
-    ///   Mon–Fri → this Sunday · Sat/Sun → next Sunday.
-    public static func weekHorizon(now: Date, calendar: Calendar) -> Date {
-        let today = startOfToday(now: now, calendar: calendar)
-        let weekday = calendar.component(.weekday, from: today) // 1 = Sunday … 7 = Saturday
-        let daysUntilSunday = (8 - weekday) % 7                 // 0 when today is Sunday
-        let thisSunday = calendar.date(byAdding: .day, value: daysUntilSunday, to: today)!
-        let tomorrow = startOfTomorrow(now: now, calendar: calendar)
-        if thisSunday > tomorrow {
-            return thisSunday
-        }
-        return calendar.date(byAdding: .day, value: 7, to: thisSunday)!
-    }
-
     // MARK: - Bucketing (total mapping)
 
     /// Which tab a task with this `dueDate` belongs to. Total: never returns
@@ -53,7 +34,10 @@ public enum DateEngine {
         guard let dueDate else { return .general }
         if dueDate < startOfTomorrow(now: now, calendar: calendar) { return .today }
         if dueDate < startOfDayAfterTomorrow(now: now, calendar: calendar) { return .tomorrow }
-        return .week
+        // Anything further out reports General and KEEPS its date — the tab is
+        // gone, the day is not (founder direction 2026-08-17). Its chip still
+        // names the weekday, and it walks into Tomorrow and Today on its own.
+        return .general
     }
 
     /// The date a task receives when moved to `bucket` (PRD §3).
@@ -61,7 +45,6 @@ public enum DateEngine {
         switch bucket {
         case .today: startOfToday(now: now, calendar: calendar)
         case .tomorrow: startOfTomorrow(now: now, calendar: calendar)
-        case .week: weekHorizon(now: now, calendar: calendar)
         case .general: nil
         }
     }
@@ -111,12 +94,22 @@ extension TaskItem {
     }
 
     public func isArchived(now: Date, calendar: Calendar) -> Bool {
-        DateEngine.isArchived(dueDate: dueDate, isCompleted: isCompleted,
+        // A ticked live note archives AT ONCE. The grace period exists so a
+        // task you just ticked stays visible in the list where you ticked it;
+        // a live note has no such list, and its box empties the moment it is
+        // done. Without this it spent a day in nowhere — gone from Live, in no
+        // tab, and not yet in the archive.
+        if isLiveNote { return isCompleted && completedAt != nil }
+        return DateEngine.isArchived(dueDate: dueDate, isCompleted: isCompleted,
                               completedAt: completedAt, now: now, calendar: calendar)
     }
 
     public func isVisible(in tab: Bucket, now: Date, calendar: Calendar) -> Bool {
-        DateEngine.isVisible(in: tab, dueDate: dueDate, isCompleted: isCompleted,
+        // The live note belongs to no tab — see `TaskItem.isLiveNote`. This is
+        // the single place the total mapping is broken, on purpose and in one
+        // line, so nothing else has to know.
+        guard !isLiveNote else { return false }
+        return DateEngine.isVisible(in: tab, dueDate: dueDate, isCompleted: isCompleted,
                              completedAt: completedAt, now: now, calendar: calendar)
     }
 }

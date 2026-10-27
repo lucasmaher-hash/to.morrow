@@ -3,13 +3,13 @@ layout: page
 title: Privacy Policy
 ---
 
-# Privacy Policy — shove.95
+# Privacy Policy — to.morrow
 
-**Last updated:** 4 August 2026
+**Last updated:** 1 September 2026
 
 ## The short version
 
-shove.95 collects nothing. There is no analytics, no advertising, no tracking,
+to.morrow collects nothing. There is no analytics, no advertising, no tracking,
 no account, and no server belonging to the developer. Your tasks and photos are
 stored on your device, and — if you turn on iCloud sync — in your own private
 iCloud account, which the developer cannot read.
@@ -22,7 +22,8 @@ Everything you type or attach:
 - the day a task is filed under
 - whether it's done, flagged important, or archived
 - photos you attach
-- your settings: colour scheme, tab names, workspace names
+- your settings: colour scheme, light or dark, typeface, tab names,
+  workspace names
 
 This is held on your device. If you are signed into iCloud and sync is enabled,
 it is also mirrored to your **private CloudKit database** — the part of iCloud
@@ -44,6 +45,17 @@ photo library access only when you tap the add-photo control, and for camera
 access only if you choose the camera. It reads only the photos you pick. It
 never scans your library.
 
+## The Lock Screen
+
+If you make a task live, its text is shown on your Lock Screen and in the
+Dynamic Island until you tick it off or switch it off. This uses Apple's Live
+Activities, which run on your device — the text is not sent anywhere, and no
+push notification service carries it. Anyone who can see your locked screen can
+read that one task, which is the point of the feature; nothing else about the
+app is shown there.
+
+The app has no Home Screen widgets, and none appears in the widget gallery.
+
 ## Deleting your data
 
 Deleting a task deletes it and its photos. Deleting the app removes everything
@@ -63,4 +75,4 @@ and the date above will change.
 ## Contact
 
 Questions about this policy: open an issue at
-<https://github.com/lucasmaher-hash/shove-95/issues>.
+<https://github.com/lucasmaher-hash/to.morrow/issues>.
