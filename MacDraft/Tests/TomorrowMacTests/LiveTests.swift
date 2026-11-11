@@ -101,4 +101,43 @@ struct LiveTests {
         #expect(task.completedAt != nil && task.bucket(now: .now, calendar: .current) == .today)
         #expect(MacLiveController(context: context, presentUI: false).note == nil)
     }
+    @Test func committingAnEmptyLiveDraftEndsTheNoteLikeOnPhone() throws {
+        let container = try store(), context = container.mainContext
+        let live = MacLiveController(context: context, presentUI: false)
+        live.write("Erase me")
+        let id = try #require(live.note?.id)
+        #expect(live.commitDraft("  ", editingNoteID: id))
+        #expect(live.note == nil)
+        #expect(try context.fetchCount(FetchDescriptor<TaskItem>()) == 0)
+    }
+
+    @Test func editingOffAirPreservesItsIdentityAndDoesNotRepin() throws {
+        let container = try store(), context = container.mainContext
+        let live = MacLiveController(context: context, presentUI: false)
+        live.write("Focus")
+        let id = try #require(live.note?.id)
+        live.setVisible(false)
+        #expect(live.commitDraft("Edited off air", editingNoteID: id))
+        #expect(live.note?.id == id && live.note?.isPinned == false)
+        #expect(live.note?.title == "Edited off air")
+        let replacement = TaskItem(); replacement.title = "Replacement"; context.insert(replacement)
+        live.activate(replacement)
+        #expect(!live.commitDraft("stale edit", editingNoteID: id))
+        #expect(live.note?.title == "Replacement")
+    }
+
+    @Test func checkCompletesAnUncommittedDraftWithoutNeedingGoFirst() async throws {
+        let container = try store(), context = container.mainContext
+        let live = MacLiveController(context: context, presentUI: false)
+        live.completeDraft("Finish draft", editingNoteID: nil, workspaceID: Workspace.workID)
+        let task = try #require(live.note)
+        #expect(live.completing && !task.isCompleted)
+        live.completeDraft("Finish draft", editingNoteID: nil)
+        try await Task.sleep(for: .milliseconds(2250))
+        #expect(task.isCompleted && !task.isLiveNote && !task.isPinned)
+        #expect(task.workspaceID == Workspace.workID)
+        #expect(task.isVisible(in: .today, now: .now, calendar: .current))
+        #expect(try context.fetchCount(FetchDescriptor<TaskItem>()) == 1)
+    }
+
 }

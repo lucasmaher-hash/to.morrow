@@ -30,6 +30,7 @@ struct EditingFocusDismissal: NSViewRepresentable {
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
                 guard let self, let window = self.window, event.window === window,
                       let editor = window.firstResponder as? NSTextView else { return event }
+                if MacEditingRegions.keepsFocus(editor: editor, event: event) { return event }
                 let target = (editor.delegate as? NSTextField) ?? editor
                 let point = target.convert(event.locationInWindow, from: nil)
                 if !target.bounds.contains(point) { window.makeFirstResponder(nil) }
@@ -69,5 +70,19 @@ struct MacScrollIndicators: NSViewRepresentable {
             scroll.autohidesScrollers = hiddenIndicators
         }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+}
+
+/// Controls belonging to an editor act on its current draft before ending
+/// editing. Avoid the board's outside-click monitor committing a new Live note
+/// on mouse-down, then treating the very same Go click as a toggle-off.
+@MainActor enum MacEditingRegions {
+    static let views = NSHashTable<NSView>.weakObjects()
+    static func keepsFocus(editor: NSView, event: NSEvent) -> Bool {
+        views.allObjects.contains { region in
+            region.window === event.window && region.window === editor.window &&
+            region.bounds.intersects(region.convert(editor.bounds, from: editor)) &&
+            region.bounds.contains(region.convert(event.locationInWindow, from: nil))
+        }
     }
 }

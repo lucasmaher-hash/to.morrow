@@ -382,7 +382,7 @@ struct TaskColumn: View {
     @FocusState private var editing: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 Text(settings.name(bucket)).font(SkeuFont.at(16, weight: .medium, role: .chrome))
                 Spacer()
@@ -423,7 +423,7 @@ struct TaskColumn: View {
                             .focused($editing)
                             .onSubmit(commitDraft)
                             .onKeyPress(.return) { commitDraft(); return .handled }
-                    }.padding(.leading, MacTaskMetrics.checkLeft).padding(.trailing, 9).padding(.vertical, (44 * MacTaskMetrics.scale - SkeuControl.minTouch) / 2)
+                    }.padding(.leading, MacTaskMetrics.checkLeft).padding(.trailing, 0).padding(.vertical, (44 * MacTaskMetrics.scale - SkeuControl.minTouch) / 2)
 
                 }.padding(.horizontal, 4).padding(.bottom, 8)
                     .background(MacScrollIndicators())
@@ -559,7 +559,7 @@ struct TaskRow: View {
             MacTaskPhotoStrip(task: task)
                 .padding(.leading, SkeuControl.minTouch + MacTaskMetrics.checkRight)
         }
-        }.padding(.leading, liveLanding ? 20 : MacTaskMetrics.checkLeft).padding(.trailing, liveLanding ? 20 : 9)
+        }.padding(.leading, liveLanding ? 20 : MacTaskMetrics.checkLeft).padding(.trailing, liveLanding ? 20 : 0)
             .padding(.vertical, liveLanding ? 20 : (44 * MacTaskMetrics.scale - SkeuControl.minTouch) / 2)
             .frame(maxHeight: liveLanding ? .infinity : nil)
             .background {

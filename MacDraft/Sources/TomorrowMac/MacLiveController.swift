@@ -64,6 +64,7 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
         reloadFromStore()
         guard let button = item?.button else { return }
         guard !popover.isShown else { return }
+        NSApp.activate()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
         button.highlight(true)
@@ -131,6 +132,30 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
             let task = TaskItem(); task.title = title; task.workspaceID = workspaceID
             context.insert(task); activate(task)
         }
+    }
+
+    /// Matches the iPhone commit boundary: Return, Go or leaving the field.
+    /// An empty draft ends the current note; a stale editor cannot replace a
+    /// newer note received from another presentation or device.
+    @discardableResult
+    func commitDraft(_ raw: String, editingNoteID: UUID?, workspaceID: String? = nil) -> Bool {
+        guard !completing else { return false }
+        if let editingNoteID, note?.id != editingNoteID { return false }
+        let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if title.isEmpty {
+            guard let task = note else { return true }
+            context.delete(task)
+            do { try context.save(); note = nil; error = nil; refreshLabel(); return true }
+            catch { context.rollback(); self.error = error.localizedDescription; return false }
+        }
+        if title != note?.title { write(title, workspaceID: workspaceID) }
+        return error == nil
+    }
+
+    func completeDraft(_ raw: String, editingNoteID: UUID?, workspaceID: String? = nil) {
+        guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              commitDraft(raw, editingNoteID: editingNoteID, workspaceID: workspaceID) else { return }
+        complete()
     }
 
     func setVisible(_ visible: Bool) {
@@ -229,25 +254,27 @@ struct LiveWell: View {
     @State private var draft = ""
     @State private var editingNoteID: UUID?
     @FocusState private var focused: Bool
+    @State private var ownerWindow: NSWindow?
     var body: some View {
         VStack(spacing: 20) {
             Group {
                 if live.completing {
                     Text(live.note?.title ?? draft).font(SkeuFont.at(22 * textScale, weight: .medium))
                         .textRenderer(LiveStrikeRenderer(progress: live.stroke))
-                } else if focused {
-                    TextField("", text: $draft, axis: .vertical)
+                } else {
+                    // Keep the editor mounted even before it receives focus.
+                    // Gating its existence on its own FocusState loses the
+                    // first click before AppKit can create a field editor.
+                    TextField("", text: $draft,
+                              prompt: Text("What are you doing?").foregroundStyle(skeu.inkFaint), axis: .vertical)
+                        .accessibilityLabel("Live task")
                         .multilineTextAlignment(.center)
                         .textFieldStyle(.plain).font(SkeuFont.at(22 * textScale, weight: .medium))
                         .focused($focused).onSubmit { commit(); focused = false }
                         .onChange(of: draft) { _, value in
                             if value.contains("\n") { draft = value.replacingOccurrences(of: "\n", with: " "); commit(); focused = false }
                         }
-                } else {
-                    Text(draft.isEmpty ? "What are you doing?" : draft)
-                        .font(SkeuFont.at(22 * textScale, weight: .medium))
-                        .foregroundStyle(draft.isEmpty ? skeu.inkFaint : skeu.ink)
-                        .frame(maxWidth: .infinity, alignment: .center)
+
                 }
             }
             .opacity(transfer?.isLiveTransfer == true ? 0 : live.completionOpacity)
@@ -261,10 +288,14 @@ struct LiveWell: View {
                 Button(action: toggleLive) {
                     Group {
                         if live.note == nil && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Text("Go").font(SkeuFont.at(SkeuToggle.label * textScale, weight: .medium))
+                            HStack(spacing: SkeuSpace.sm) {
+                                MacLiveGlyph(tint: skeu.ink, lineWidth: 1.7)
+                                    .frame(width: SkeuTopBar.control * 0.42, height: SkeuTopBar.control * 0.42)
+                                Text("Go").font(SkeuFont.at(SkeuToggle.label * textScale, weight: .medium))
+                            }
                         } else {
                             HStack(spacing: SkeuSpace.sm) {
-                                LiveGlyph(tint: onAir ? skeu.ink : skeu.inkMuted, lineWidth: 1.7)
+                                MacLiveGlyph(tint: onAir ? skeu.ink : skeu.inkMuted, lineWidth: 1.7)
                                     .frame(width: SkeuTopBar.control * 0.42, height: SkeuTopBar.control * 0.42)
                                 Text(onAir ? "Live" : "Off air")
                                     .font(SkeuFont.at(SkeuToggle.label * textScale, weight: .medium))
@@ -273,13 +304,13 @@ struct LiveWell: View {
                         }
                     }.padding(.horizontal, SkeuSpace.lg)
                         .frame(maxWidth: .infinity).frame(height: SkeuTopBar.control)
-                        .skeuGlass(Capsule(), height: SkeuTopBar.control)
+                        .skeuGlass(Capsule(), height: SkeuTopBar.control, prominent: true)
                         .contentShape(Capsule())
                 }.buttonStyle(MacSkeuTapStyle())
                     .accessibilityLabel(onAir ? "Showing in the menu bar" : "Show task in menu bar")
                 Button {
-                    commit(); focused = false
-                    live.complete()
+                    live.completeDraft(draft, editingNoteID: editingNoteID, workspaceID: workspaceID)
+                    focused = false
                 } label: {
                     SkeuChromeGlyph(kind: .check, face: SkeuFont.face, size: 15.4, tint: skeu.ink)
                         .foregroundStyle(skeu.ink).opacity(hasText ? 1 : 0.55)
@@ -287,17 +318,19 @@ struct LiveWell: View {
                         .skeuGlass(Circle(), height: SkeuTopBar.control)
                         .contentShape(Circle())
                 }.buttonStyle(MacSkeuTapStyle())
-                    .disabled(!hasText || live.note == nil).help("Complete Live task").accessibilityLabel("Complete Live task")
+                    .disabled(!hasText).help("Complete Live task").accessibilityLabel("Complete Live task")
             }.disabled(live.completing)
             if let error = live.error { Text(error).font(.system(size: 12)).foregroundStyle(skeu.critical) }
         }
+        .background(LiveWindowReader { ownerWindow = $0 })
         .onChange(of: focused) { _, isFocused in
             if isFocused { editingNoteID = live.note?.id } else { commit() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .livePopoverWillClose)) { _ in
             if focused { commit(); focused = false }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
+            guard let window = notification.object as? NSWindow, window === ownerWindow else { return }
             if focused { commit(); focused = false }
         }
         .onDisappear { if focused { commit(); focused = false } }
@@ -314,9 +347,9 @@ struct LiveWell: View {
         else { focused = true }
     }
     private func commit() {
-        if let editingNoteID, live.note?.id != editingNoteID { draft = live.note?.title ?? ""; return }
-        guard !live.completing else { return }
-        if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { live.write(draft, workspaceID: workspaceID) }
+        if !live.commitDraft(draft, editingNoteID: editingNoteID, workspaceID: workspaceID) {
+            draft = live.note?.title ?? ""
+        }
     }
 }
 
@@ -344,4 +377,22 @@ struct LiveStrikeRenderer: TextRenderer, Animatable {
 
 private extension Notification.Name {
     static let livePopoverWillClose = Notification.Name("to.morrow.livePopoverWillClose")
+}
+
+/// Scope key-window notifications to this Live editor's own presentation.
+private struct LiveWindowReader: NSViewRepresentable {
+    let changed: (NSWindow?) -> Void
+    func makeNSView(context: Context) -> Probe { let view = Probe(); view.changed = changed; return view }
+    func updateNSView(_ view: Probe, context: Context) { view.changed = changed }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { MacEditingRegions.views.remove(view); view.changed?(nil) }
+    final class Probe: NSView {
+        var changed: ((NSWindow?) -> Void)?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            MacEditingRegions.views.remove(self)
+            if window != nil { MacEditingRegions.views.add(self) }
+            DispatchQueue.main.async { [weak self] in self?.changed?(self?.window) }
+        }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
 }
