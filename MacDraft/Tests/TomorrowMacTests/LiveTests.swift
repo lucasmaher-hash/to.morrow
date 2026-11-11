@@ -89,13 +89,14 @@ struct LiveTests {
         live.activate(task)
         let reopened = MacLiveController(context: context, presentUI: false)
         #expect(reopened.note?.id == task.id)
-        live.complete(); live.complete() // second click must not schedule a second finish
+        let completion = try #require(live.complete())
+        #expect(live.complete() == nil) // second click cannot schedule another finish
         #expect(live.completing && !task.isCompleted)
         try await Task.sleep(for: .milliseconds(100))
         #expect(!task.isCompleted && live.note?.id == task.id)
         try await Task.sleep(for: .milliseconds(750))
         #expect(!task.isCompleted && live.completing && live.stroke == 1)
-        try await Task.sleep(for: .milliseconds(1400))
+        await completion.value
         #expect(task.isCompleted && !task.isLiveNote && !task.isPinned)
         #expect(live.note == nil && !live.completing)
         #expect(task.completedAt != nil && task.bucket(now: .now, calendar: .current) == .today)
@@ -129,11 +130,11 @@ struct LiveTests {
     @Test func checkCompletesAnUncommittedDraftWithoutNeedingGoFirst() async throws {
         let container = try store(), context = container.mainContext
         let live = MacLiveController(context: context, presentUI: false)
-        live.completeDraft("Finish draft", editingNoteID: nil, workspaceID: Workspace.workID)
+        let completion = try #require(live.completeDraft("Finish draft", editingNoteID: nil, workspaceID: Workspace.workID))
         let task = try #require(live.note)
         #expect(live.completing && !task.isCompleted)
-        live.completeDraft("Finish draft", editingNoteID: nil)
-        try await Task.sleep(for: .milliseconds(2250))
+        #expect(live.completeDraft("Finish draft", editingNoteID: nil) == nil)
+        await completion.value
         #expect(task.isCompleted && !task.isLiveNote && !task.isPinned)
         #expect(task.workspaceID == Workspace.workID)
         #expect(task.isVisible(in: .today, now: .now, calendar: .current))

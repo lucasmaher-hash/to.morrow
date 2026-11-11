@@ -152,10 +152,11 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
         return error == nil
     }
 
-    func completeDraft(_ raw: String, editingNoteID: UUID?, workspaceID: String? = nil) {
+    @discardableResult
+    func completeDraft(_ raw: String, editingNoteID: UUID?, workspaceID: String? = nil) -> Task<Void, Never>? {
         guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              commitDraft(raw, editingNoteID: editingNoteID, workspaceID: workspaceID) else { return }
-        complete()
+              commitDraft(raw, editingNoteID: editingNoteID, workspaceID: workspaceID) else { return nil }
+        return complete()
     }
 
     func setVisible(_ visible: Bool) {
@@ -200,8 +201,9 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
         button.setAccessibilityLabel(note?.isPinned == true ? "to.morrow Live: \(note?.title ?? "")" : "to.morrow Live")
     }
 
-    func complete() {
-        guard let task = note, !completing else { return }
+    @discardableResult
+    func complete() -> Task<Void, Never>? {
+        guard let task = note, !completing else { return nil }
         let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         completing = true; stroke = 0; completionOpacity = 1; error = nil
         completion = Task { @MainActor [weak self] in
@@ -231,6 +233,7 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
                 self.reloadFromStore()
             } catch { self.completing = false; self.stroke = 0; self.completionOpacity = 1 }
         }
+        return completion
     }
 
 }
