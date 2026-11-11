@@ -26,32 +26,13 @@ public enum Placement {
         (allInBucket.map(\.sortOrder).max() ?? 0) + 1
     }
 
-    /// Task arriving from another tab (swipe or menu move).
-    /// Normal → bottom. Important → under the destination's existing important
-    /// block: after the last important, before the first non-important
-    /// (locked decision Q16).
-    ///
-    /// `visible` is the destination's visible incomplete tasks (the band
-    /// structure); `allInBucket` additionally includes completed tasks and is
-    /// used for any bottom anchor (see `sortOrderForNewTask`).
+    /// A moved task always arrives at the very top, regardless of importance
+    /// (founder update 2026-10-25, replacing Q16). Include completed tasks in
+    /// the anchor so unticking one cannot collide with the arriving task.
     public static func sortOrderForArrival(
-        isImportant: Bool, visible: [TaskItem], allInBucket: [TaskItem]
+        isImportant _: Bool, visible _: [TaskItem], allInBucket: [TaskItem]
     ) -> Double {
-        guard isImportant else {
-            return sortOrderForNewTask(allInBucket: allInBucket)
-        }
-        let lastImportantIndex = visible.lastIndex(where: { $0.isImportant })
-        guard let lastImportantIndex else {
-            // No important block yet → very top.
-            return (visible.first?.sortOrder ?? 0) - 1
-        }
-        let after = lastImportantIndex + 1
-        guard after < visible.count else {
-            // Everything visible is important → bottom (past completed too).
-            return max(visible[lastImportantIndex].sortOrder + 1,
-                       sortOrderForNewTask(allInBucket: allInBucket))
-        }
-        return midpoint(visible[lastImportantIndex].sortOrder, visible[after].sortOrder)
+        (allInBucket.map(\.sortOrder).min() ?? 0) - 1
     }
 
     /// Flagging Important → jumps to the very top of the tab (locked Q17).

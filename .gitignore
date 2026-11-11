@@ -22,3 +22,10 @@ DerivedData/
 # them to the blanket rule above meant they lived on one machine and nowhere
 # else.
 !store/screenshots/*.png
+
+# Private local working notes
+/MacDraft/HANDOFF*.md
+/MacDraft/DESIGN-REBUILD.md
+
+# Native Mac app resource referenced by the generated Xcode project
+!MacDraft/Assets/AppIcon-macos-1024.png

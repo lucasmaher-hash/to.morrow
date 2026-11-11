@@ -40,27 +40,25 @@ struct PlacementInsertTests {
         #expect(order > 2)
     }
 
-    @Test func normalArrivalGoesToBottom() {
+    @Test func normalArrivalGoesAboveExistingImportantTask() {
         let visible = [task("imp", sortOrder: 1, important: true), task("a", sortOrder: 2)]
-        #expect(Placement.sortOrderForArrival(isImportant: false, visible: visible, allInBucket: visible) == 3)
+        #expect(Placement.sortOrderForArrival(isImportant: false, visible: visible, allInBucket: visible) == 0)
     }
 
     @Test func arrivalAlsoClearsCompletedTasksOrders() {
         let visible = [task("a", sortOrder: 1)]
-        let all = visible + [task("done", sortOrder: 5, completed: true)]
-        #expect(Placement.sortOrderForArrival(isImportant: false, visible: visible, allInBucket: all) == 6)
+        let all = visible + [task("done", sortOrder: -4, completed: true)]
+        #expect(Placement.sortOrderForArrival(isImportant: false, visible: visible, allInBucket: all) == -5)
     }
 
-    @Test func importantArrivalSlotsUnderImportantBlock() {
-        // Locked Q16: incoming important goes under existing importants,
-        // above the first normal task.
+    @Test func importantArrivalGoesAboveExistingImportantBlock() {
         let visible = [
             task("imp1", sortOrder: 1, important: true),
             task("imp2", sortOrder: 2, important: true),
             task("normal", sortOrder: 3),
         ]
         let order = Placement.sortOrderForArrival(isImportant: true, visible: visible, allInBucket: visible)
-        #expect(order > 2 && order < 3)
+        #expect(order < 1)
     }
 
     @Test func importantArrivalWithNoImportantsGoesToVeryTop() {
@@ -69,9 +67,9 @@ struct PlacementInsertTests {
         #expect(order < 5)
     }
 
-    @Test func importantArrivalWhenAllImportantGoesToBottom() {
+    @Test func importantArrivalWhenAllImportantGoesToTop() {
         let visible = [task("imp1", sortOrder: 1, important: true), task("imp2", sortOrder: 2, important: true)]
-        #expect(Placement.sortOrderForArrival(isImportant: true, visible: visible, allInBucket: visible) == 3)
+        #expect(Placement.sortOrderForArrival(isImportant: true, visible: visible, allInBucket: visible) == 0)
     }
 
     @Test func importantArrivalIntoEmptyList() {

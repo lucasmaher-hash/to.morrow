@@ -86,7 +86,7 @@ public enum DateEngine {
 
 extension TaskItem {
     public func bucket(now: Date, calendar: Calendar) -> Bucket {
-        DateEngine.bucket(for: dueDate, now: now, calendar: calendar)
+        isLiveNote ? .today : DateEngine.bucket(for: dueDate, now: now, calendar: calendar)
     }
 
     public func isOverdue(now: Date, calendar: Calendar) -> Bool {
@@ -94,22 +94,44 @@ extension TaskItem {
     }
 
     public func isArchived(now: Date, calendar: Calendar) -> Bool {
-        // A ticked live note archives AT ONCE. The grace period exists so a
-        // task you just ticked stays visible in the list where you ticked it;
-        // a live note has no such list, and its box empties the moment it is
-        // done. Without this it spent a day in nowhere — gone from Live, in no
-        // tab, and not yet in the archive.
-        if isLiveNote { return isCompleted && completedAt != nil }
-        return DateEngine.isArchived(dueDate: dueDate, isCompleted: isCompleted,
+        return DateEngine.isArchived(dueDate: isLiveNote ? DateEngine.startOfToday(now: now, calendar: calendar) : dueDate, isCompleted: isCompleted,
                               completedAt: completedAt, now: now, calendar: calendar)
     }
 
     public func isVisible(in tab: Bucket, now: Date, calendar: Calendar) -> Bool {
-        // The live note belongs to no tab — see `TaskItem.isLiveNote`. This is
-        // the single place the total mapping is broken, on purpose and in one
-        // line, so nothing else has to know.
-        guard !isLiveNote else { return false }
-        return DateEngine.isVisible(in: tab, dueDate: dueDate, isCompleted: isCompleted,
+        return DateEngine.isVisible(in: tab, dueDate: isLiveNote ? DateEngine.startOfToday(now: now, calendar: calendar) : dueDate, isCompleted: isCompleted,
                              completedAt: completedAt, now: now, calendar: calendar)
+    }
+}
+
+
+/// Calendar-day average, including quiet days since the first recorded completion.
+/// The caller supplies the same workspace-scoped records used for the total.
+public struct CompletionStatistics {
+    public let total: Int
+    public let dailyAverage: Double
+
+    public init(tasks: [TaskItem], now: Date = .now, calendar: Calendar = .current) {
+        let completed = tasks.filter(\.isCompleted)
+        total = completed.count
+        let first = completed.map { min(now, $0.completedAt ?? $0.createdAt) }.min() ?? now
+        let days = max(1, (calendar.dateComponents([.day], from: calendar.startOfDay(for: first),
+                                                  to: calendar.startOfDay(for: now)).day ?? 0) + 1)
+        dailyAverage = Double(total) / Double(days)
+    }
+}
+
+
+public extension TaskItem {
+    /// Shared phone/Mac checkbox behavior. Unticking never silently re-pins.
+    func toggleCompletion(now: Date = .now, calendar: Calendar = .current) {
+        if !isCompleted && isLiveNote {
+            dueDate = calendar.startOfDay(for: now)
+            overduePlaced = false
+            isLiveNote = false
+        }
+        isCompleted.toggle()
+        completedAt = isCompleted ? now : nil
+        if isCompleted { isPinned = false }
     }
 }

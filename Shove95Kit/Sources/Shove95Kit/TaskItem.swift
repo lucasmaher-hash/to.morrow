@@ -36,18 +36,9 @@ public final class TaskItem {
     /// "active" in one place is how bugs get written. It SYNCS: pin on the
     /// phone and the iPad's Lock Screen shows it too.
     public var isPinned: Bool = false
-    /// This task IS the live note — it lives in the Live section and nowhere
-    /// else (founder direction 2026-08-17).
-    ///
-    /// It is the one deliberate hole in the "tabs are total filters" rule.
-    /// Everything else maps to exactly one tab at every moment; a live note
-    /// maps to none, because it is not a thing you scheduled — it is the
-    /// thing you are doing. Ticking it on the Lock Screen completes it like
-    /// any other task, so it still reaches the archive.
-    ///
-    /// Separate from `isPinned`, which now means only "showing on the Lock
-    /// Screen right now". The switch in the Live section turns that off and
-    /// leaves the text in the box.
+    /// The current Live focus. This is the SAME record shown in Today;
+    /// its title, completion, workspace and photos are shared by both views.
+    /// It stays in Today when replaced; completion clears the Live state.
     public var isLiveNote: Bool = false
     // ── Photos ──────────────────────────────────────────────────────────
     // Each photo is its OWN record (TASK-050). The previous shape — one

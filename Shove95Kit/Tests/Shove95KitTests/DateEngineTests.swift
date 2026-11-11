@@ -164,31 +164,33 @@ struct ChipFormatTests {
     }
 }
 
-@Suite("The live note: in no tab, and archived the moment it is done")
+@Suite("Live and Today share the same task")
 struct LiveNoteTests {
     private let cal = Fixed.calendar
     private let noon = Fixed.date(2026, 8, 3, 12, 0)
 
-    @Test("belongs to no tab, whatever its date")
-    func inNoTab() {
+    @Test("belongs to Today, including legacy notes dated elsewhere")
+    func inToday() {
         let note = TaskItem()
         note.isLiveNote = true
         note.dueDate = Fixed.date(2026, 8, 3, 0, 0)   // today, if it were a task
         for tab in Bucket.line {
-            #expect(note.isVisible(in: tab, now: noon, calendar: cal) == false)
+            #expect(note.isVisible(in: tab, now: noon, calendar: cal) == (tab == .today))
         }
     }
 
     /// The hole this closes: a ticked live note has no list to linger in, so
     /// the ordinary grace period left it gone from Live, in no tab, and not
     /// yet in the archive — a whole day in nowhere.
-    @Test("archives at once when ticked, with no grace period")
-    func archivesImmediately() {
+    @Test("completed Live tasks remain in Today until midnight")
+    func archivesAfterMidnight() {
         let note = TaskItem()
         note.isLiveNote = true
         note.isCompleted = true
         note.completedAt = Fixed.date(2026, 8, 3, 11, 59)   // one minute ago
-        #expect(note.isArchived(now: noon, calendar: cal))
+        #expect(!note.isArchived(now: noon, calendar: cal))
+        #expect(note.isVisible(in: .today, now: noon, calendar: cal))
+        #expect(note.isArchived(now: Fixed.date(2026, 8, 4, 0, 1), calendar: cal))
     }
 
     @Test("an ordinary dateless task still waits its day out")
