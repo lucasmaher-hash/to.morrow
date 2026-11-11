@@ -242,16 +242,9 @@ struct MacLivePanel: View {
     @ObservedObject var live: MacLiveController
     @Environment(\.skeu) private var skeu
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                HStack(spacing: SkeuSpace.sm) {
-                    MacLiveGlyph(tint: skeu.ink).frame(width: 14, height: 14)
-                    Text("Live").font(.system(size: 14, weight: .medium))
-                }
-                Spacer()
-            }
-            LiveWell(live: live)
-        }.padding(22).frame(width: 360).background(skeu.canvas).foregroundStyle(skeu.ink)
+        LiveWell(live: live)
+            .padding(22).frame(width: 360)
+            .background(skeu.canvas).foregroundStyle(skeu.ink)
     }
 }
 

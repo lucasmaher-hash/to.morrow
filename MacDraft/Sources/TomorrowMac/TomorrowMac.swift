@@ -265,6 +265,7 @@ struct BoardView: View {
         Button { closeWorkspaces(); showFocus.toggle() } label: {
             MacLiveGlyph(tint: skeu.ink)
                 .frame(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter)
+                .skeuPulse(live.note?.isPinned == true)
         }.buttonStyle(GlassButton(circle: true))
             .help(showFocus ? "Hide Live panel" : "Show Live panel")
             .accessibilityLabel(showFocus ? "Hide Live panel" : "Show Live panel")
