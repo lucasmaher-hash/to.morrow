@@ -73,8 +73,8 @@ struct PixelLiveGlyph: View {
 /// the existing Live mark's diameter, tint and surrounding button unchanged.
 struct MacLiveGlyph: View {
     @EnvironmentObject private var settings: MacSettings
+    static let diameter: CGFloat = 18.5
     let tint: Color
-    let lineWidth: CGFloat
     var body: some View {
         GeometryReader { geometry in
             let diameter = min(geometry.size.width, geometry.size.height)
@@ -82,7 +82,7 @@ struct MacLiveGlyph: View {
                 if settings.face == "Retro" {
                     PixelLiveGlyph(pixel: diameter / 11, tint: tint)
                 } else {
-                    LiveGlyph(tint: tint, lineWidth: lineWidth)
+                    LiveGlyph(tint: tint, lineWidth: diameter * (1.7 / Self.diameter))
                 }
             }.frame(width: geometry.size.width, height: geometry.size.height)
         }

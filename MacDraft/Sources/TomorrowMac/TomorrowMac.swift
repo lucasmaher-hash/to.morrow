@@ -263,8 +263,8 @@ struct BoardView: View {
     }
     private var boardActions: some View {
         Button { closeWorkspaces(); showFocus.toggle() } label: {
-            MacLiveGlyph(tint: skeu.ink, lineWidth: 1.7)
-                .frame(width: SkeuTopBar.icon, height: SkeuTopBar.icon)
+            MacLiveGlyph(tint: skeu.ink)
+                .frame(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter)
         }.buttonStyle(GlassButton(circle: true))
             .help(showFocus ? "Hide Live panel" : "Show Live panel")
             .accessibilityLabel(showFocus ? "Hide Live panel" : "Show Live panel")
@@ -382,11 +382,15 @@ struct TaskColumn: View {
     @FocusState private var editing: Bool
 
     var body: some View {
+        GeometryReader { columnGeometry in
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 Text(settings.name(bucket)).font(SkeuFont.at(16, weight: .medium, role: .chrome))
                 Spacer()
             }.frame(height: SkeuTopBar.control).padding(.horizontal, 10)
+                // Retain the heading baseline, but release its blank lower
+                // slot so the visible heading-to-task gap is halved too.
+                .padding(.bottom, -16)
             ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 6) {
@@ -426,6 +430,7 @@ struct TaskColumn: View {
                     }.padding(.leading, MacTaskMetrics.checkLeft).padding(.trailing, 0).padding(.vertical, (44 * MacTaskMetrics.scale - SkeuControl.minTouch) / 2)
 
                 }.padding(.horizontal, 4).padding(.bottom, 8)
+                    .frame(width: max(0, columnGeometry.size.width - 28), alignment: .leading)
                     .background(MacScrollIndicators())
                     .animation(reduceMotion ? nil : MacTaskTransferCoordinator.displace, value: transfer.boardDrop)
                     .animation(reduceMotion ? nil : MacTaskTransferCoordinator.displace, value: transfer.isBoardDrag)
@@ -457,6 +462,7 @@ struct TaskColumn: View {
         }.padding(.horizontal, 14).padding(.top, 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .onChange(of: newTaskRequest) { if bucket == .today { editing = true } }
+        }
     }
 
     @ViewBuilder private func insertionGap(before id: UUID?) -> some View {
@@ -526,8 +532,8 @@ struct TaskRow: View {
                         editing = false; showMenu(rowFrame)
                     })
             if carried ? transfer.carriedWasLive : (task.isLiveNote && !task.isCompleted) {
-                LiveGlyph(tint: task.isImportant && !liveLanding ? skeu.critical : skeu.ink, lineWidth: 1.7)
-                    .frame(width: liveLanding ? 0 : 18.5, height: 18.5).skeuPulse(task.isPinned)
+                MacLiveGlyph(tint: task.isImportant && !liveLanding ? skeu.critical : skeu.ink)
+                    .frame(width: liveLanding ? 0 : MacLiveGlyph.diameter, height: MacLiveGlyph.diameter).skeuPulse(task.isPinned)
                     .opacity(liveLanding ? 0 : 1)
                     .padding(.top, liveLanding ? 0 : (SkeuControl.minTouch - 18.5) / 2)
                     .allowsHitTesting(false).accessibilityLabel(task.isPinned ? "Live task" : "Live task, off air")

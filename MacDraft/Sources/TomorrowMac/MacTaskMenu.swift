@@ -74,7 +74,7 @@ struct MacTaskMenuOverlay: View {
     private func item(_ title: String, destructive: Bool = false, mark: Bool = false, disclosure: Bool = false, dismiss: Bool = false, action: @escaping () -> Void) -> some View {
         Button { if dismiss { close() }; action() } label: {
             HStack(spacing: 8) {
-                if mark { LiveGlyph(tint: skeu.ink, lineWidth: 1.4).frame(width: 12.8 * 0.82, height: 12.8 * 0.82) }
+                if mark { MacLiveGlyph(tint: skeu.ink).frame(width: 12.8 * 0.82, height: 12.8 * 0.82) }
                 Text(title).font(SkeuFont.at(12.8)).tracking(-0.02 * 12.8)
                     .foregroundStyle(destructive ? skeu.critical : skeu.ink).lineLimit(1)
                 if disclosure { Spacer(); Image(systemName: "chevron.right").font(SkeuFont.at(12.8)).foregroundStyle(skeu.ink) }

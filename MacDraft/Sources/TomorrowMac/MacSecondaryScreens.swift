@@ -145,7 +145,7 @@ struct MacHowToContent: View {
             MacReadOnlyWell(title: "Go live", prominent: true) {
                 VStack(alignment: .leading, spacing: SkeuSpace.md * 1.5) {
                     HStack(spacing: SkeuSpace.sm) {
-                        LiveGlyph(tint: skeu.ink, lineWidth: 1.7).frame(width: 19, height: 19)
+                        MacLiveGlyph(tint: skeu.ink).frame(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter)
                         Text("Live").font(SkeuFont.at(16.4, weight: .medium))
                     }.skeuPulse(true).padding(.horizontal, 20).frame(height: 44.4)
                         .skeuGlass(Capsule(), height: 44.4)

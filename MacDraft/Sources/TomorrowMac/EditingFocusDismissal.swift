@@ -65,6 +65,10 @@ struct MacScrollIndicators: NSViewRepresentable {
         func applyWhenAttached() { DispatchQueue.main.async { [weak self] in self?.apply() } }
         private func apply() {
             guard let scroll = enclosingScrollView else { return }
+            // Legacy scrollers reserve a horizontal gutter even after SwiftUI
+            // hides their paint. Overlay style makes the viewport use it too.
+            let style: NSScroller.Style = hiddenIndicators ? .overlay : .legacy
+            if scroll.scrollerStyle != style { scroll.scrollerStyle = style }
             if scroll.hasVerticalScroller == hiddenIndicators { scroll.hasVerticalScroller = !hiddenIndicators }
             if scroll.hasHorizontalScroller { scroll.hasHorizontalScroller = false }
             scroll.autohidesScrollers = hiddenIndicators

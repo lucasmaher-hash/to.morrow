@@ -41,7 +41,7 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
         popover.animates = true
         popover.delegate = self
         popover.contentViewController = NSHostingController(rootView: SkeuHost(settings: self.settings) { MacLivePanel(live: self) })
-        preferenceObserver = self.settings.$menuTitle.receive(on: RunLoop.main).sink { [weak self] _ in
+        preferenceObserver = self.settings.$menuTitle.combineLatest(self.settings.$face).receive(on: RunLoop.main).sink { [weak self] _ in
             Task { @MainActor in self?.refreshLabel() }
         }
         refreshLabel()
@@ -186,7 +186,13 @@ final class MacLiveController: NSObject, ObservableObject, NSPopoverDelegate {
 
     private func refreshLabel() {
         guard let button = item?.button else { return }
-        button.image = NSImage(systemSymbolName: "circle.inset.filled", accessibilityDescription: "to.morrow Live")
+        let glyph = MacLiveGlyph(tint: .black).environmentObject(settings)
+            .frame(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter)
+        let renderer = ImageRenderer(content: glyph)
+        renderer.scale = 2
+        if let image = renderer.cgImage {
+            button.image = NSImage(cgImage: image, size: NSSize(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter))
+        }
         button.image?.isTemplate = true
         button.imagePosition = .imageLeading
         button.title = note?.isPinned == true && settings.menuTitle ? "  " + String((note?.title ?? "").prefix(26)) : ""
@@ -235,7 +241,10 @@ struct MacLivePanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Label("Live", systemImage: "circle.inset.filled").font(.system(size: 14, weight: .medium))
+                HStack(spacing: SkeuSpace.sm) {
+                    MacLiveGlyph(tint: skeu.ink).frame(width: 14, height: 14)
+                    Text("Live").font(.system(size: 14, weight: .medium))
+                }
                 Spacer()
             }
             LiveWell(live: live)
@@ -265,11 +274,24 @@ struct LiveWell: View {
                     // Keep the editor mounted even before it receives focus.
                     // Gating its existence on its own FocusState loses the
                     // first click before AppKit can create a field editor.
-                    TextField("", text: $draft,
-                              prompt: Text("What are you doing?").foregroundStyle(skeu.inkFaint), axis: .vertical)
+                    TextField("", text: $draft, axis: .vertical)
                         .accessibilityLabel("Live task")
+                        .accessibilityHint("What are you doing?")
                         .multilineTextAlignment(.center)
                         .textFieldStyle(.plain).font(SkeuFont.at(22 * textScale, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .overlay {
+                            // AppKit's native placeholder ignores multiline
+                            // alignment. Draw it in the same centred field slot.
+                            if draft.isEmpty {
+                                Text("What are you doing?")
+                                    .font(SkeuFont.at(22 * textScale, weight: .medium))
+                                    .foregroundStyle(skeu.inkFaint)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .allowsHitTesting(false).accessibilityHidden(true)
+                            }
+                        }
                         .focused($focused).onSubmit { commit(); focused = false }
                         .onChange(of: draft) { _, value in
                             if value.contains("\n") { draft = value.replacingOccurrences(of: "\n", with: " "); commit(); focused = false }
@@ -289,18 +311,19 @@ struct LiveWell: View {
                     Group {
                         if live.note == nil && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             HStack(spacing: SkeuSpace.sm) {
-                                MacLiveGlyph(tint: skeu.ink, lineWidth: 1.7)
-                                    .frame(width: SkeuTopBar.control * 0.42, height: SkeuTopBar.control * 0.42)
+                                MacLiveGlyph(tint: skeu.ink)
+                                    .frame(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter)
                                 Text("Go").font(SkeuFont.at(SkeuToggle.label * textScale, weight: .medium))
                             }
                         } else {
                             HStack(spacing: SkeuSpace.sm) {
-                                MacLiveGlyph(tint: onAir ? skeu.ink : skeu.inkMuted, lineWidth: 1.7)
-                                    .frame(width: SkeuTopBar.control * 0.42, height: SkeuTopBar.control * 0.42)
+                                MacLiveGlyph(tint: onAir ? skeu.ink : skeu.inkMuted)
+                                    .frame(width: MacLiveGlyph.diameter, height: MacLiveGlyph.diameter)
                                 Text(onAir ? "Live" : "Off air")
                                     .font(SkeuFont.at(SkeuToggle.label * textScale, weight: .medium))
                                     .foregroundStyle(onAir ? skeu.ink : skeu.inkMuted)
                             }.skeuPulse(onAir).opacity(onAir ? 1 : 0.55)
+                                .animation(SkeuMotion.tint, value: onAir)
                         }
                     }.padding(.horizontal, SkeuSpace.lg)
                         .frame(maxWidth: .infinity).frame(height: SkeuTopBar.control)
@@ -314,6 +337,7 @@ struct LiveWell: View {
                 } label: {
                     SkeuChromeGlyph(kind: .check, face: SkeuFont.face, size: 15.4, tint: skeu.ink)
                         .foregroundStyle(skeu.ink).opacity(hasText ? 1 : 0.55)
+                        .animation(SkeuMotion.tint, value: hasText)
                         .frame(width: SkeuTopBar.control, height: SkeuTopBar.control)
                         .skeuGlass(Circle(), height: SkeuTopBar.control)
                         .contentShape(Circle())
