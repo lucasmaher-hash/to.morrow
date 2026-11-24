@@ -16,7 +16,7 @@ cat > "$app_path/Contents/Info.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>TomorrowMac</string>
-<key>CFBundleIdentifier</key><string>com.lucasmaher.tomorrow.macdraft</string>
+<key>CFBundleIdentifier</key><string>com.lucasmaher.shove95</string>
 <key>CFBundleName</key><string>to.morrow Mac Draft</string>
 <key>CFBundleDisplayName</key><string>to.morrow Mac Draft</string>
 <key>CFBundleIconFile</key><string>AppIcon.icns</string>

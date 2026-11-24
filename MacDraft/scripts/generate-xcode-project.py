@@ -28,7 +28,7 @@ obj('group', f'isa = PBXGroup; children = {ids(refs+[key("products")])}; sourceT
 for config,env,aps in [('Debug','Development','development'),('Release','Production','production')]:
     obj('project'+config, f'isa = XCBuildConfiguration; name = {config}; buildSettings = {{ SDKROOT = macosx; MACOSX_DEPLOYMENT_TARGET = 26.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; }};')
     obj('target'+config, f'''isa = XCBuildConfiguration; name = {config}; buildSettings = {{
-        PRODUCT_NAME = TomorrowMac; PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.tomorrow.macdraft;
+        PRODUCT_NAME = TomorrowMac; PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95;
         INFOPLIST_FILE = Config/Info.plist; CODE_SIGN_ENTITLEMENTS = Config/TomorrowMac.entitlements;
         DEVELOPMENT_TEAM = 35875F7J33; CODE_SIGN_STYLE = Automatic; CODE_SIGN_IDENTITY = "Apple Development";
         ICLOUD_ENVIRONMENT = {env}; APS_ENVIRONMENT = {aps};
