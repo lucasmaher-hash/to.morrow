@@ -29,6 +29,14 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference skipped = "NO" parallelizable = "NO">
+            <BuildableReference BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CC1000000000000000000003"
+               BuildableName = "shove95Tests.xctest" BlueprintName = "shove95Tests"
+               ReferencedContainer = "container:shove95.xcodeproj" />
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -54,7 +62,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "-wipeAll YES"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

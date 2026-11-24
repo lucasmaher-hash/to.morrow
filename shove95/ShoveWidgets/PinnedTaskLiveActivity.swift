@@ -55,15 +55,9 @@ struct PinnedTaskLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "record.circle.fill")
                     .foregroundStyle(Color(context.state.palette.accent))
+                    .accessibilityLabel("Live task: \(context.state.title)")
             } compactTrailing: {
-                // Truncated hard: the compact slot is a few characters wide,
-                // and a title that elides to "sort out th…" is still a better
-                // reminder than an icon alone.
-                Text(context.state.title)
-                    .font(context.state.font(13))
-                    .foregroundStyle(Color(context.state.palette.ink))
-                    .lineLimit(1)
-                    .frame(maxWidth: 90, alignment: .leading)
+                EmptyView()
             } minimal: {
                 Image(systemName: "record.circle.fill")
                     .foregroundStyle(Color(context.state.palette.accent))
@@ -75,6 +69,63 @@ struct PinnedTaskLiveActivity: Widget {
 }
 
 // MARK: - Lock Screen
+
+/// A directly drawn strike follows each wrapped line's actual text layout.
+private struct LiveCompletionTitle: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
+    let state: PinnedTaskAttributes.ContentState
+    let size: CGFloat
+    let lines: Int
+    var textColor: Color? = nil
+
+    private var completed: Bool { state.isCompleted == true }
+    private var ink: Color { textColor ?? Color(state.palette.ink) }
+
+    var body: some View {
+        Text(state.title)
+            .font(state.font(size, weight: .medium))
+            .foregroundStyle(ink)
+            .lineLimit(lines)
+            .textRenderer(ActivityCompletionTextRenderer(progress: completed ? 1 : 0, color: ink))
+            // Let the stroke's progress animate; WidgetKit's default text
+            // replacement transition can otherwise bloom from the centre.
+            .contentTransition(.identity)
+            .transition(.identity)
+            .animation(reduceMotion || isLuminanceReduced ? nil
+                       : .linear(duration: PinnedTaskCompletionTiming.strikeDuration)
+                            .delay(PinnedTaskCompletionTiming.strikeDelay),
+                       value: completed)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityValue(completed ? "Completed" : "")
+    }
+}
+
+private struct LiveCheckmarkBounce: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
+    let completed: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .symbolEffect(.bounce, options: .speed(PinnedTaskCompletionTiming.bounceSpeed), value: completed)
+            .symbolEffectsRemoved(reduceMotion || isLuminanceReduced)
+    }
+}
+
+private struct LiveCompletionPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion && !isLuminanceReduced ? 0.90 : 1)
+            .animation(reduceMotion || isLuminanceReduced ? nil
+                       : .spring(response: 0.22, dampingFraction: 0.62),
+                       value: configuration.isPressed)
+    }
+}
 
 private struct LockScreenCard: View {
     let state: PinnedTaskAttributes.ContentState
@@ -103,17 +154,13 @@ private struct SkeuCardView: View {
             // the one you are doing NOW; when it is due is the list's
             // question, not this card's, and a second line halves the size
             // the title can take.
-            Text(state.title)
-                .font(state.font(17, weight: .medium))
-                .foregroundStyle(Color(state.palette.ink))
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            LiveCompletionTitle(state: state, size: 17, lines: 3)
 
             Button(intent: CompletePinnedTaskIntent(taskID: taskID)) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(Color(state.palette.ink))
+                    .modifier(LiveCheckmarkBounce(completed: state.isCompleted == true))
                     .frame(width: 44, height: 44)
                     .background {
                         Circle()
@@ -132,7 +179,8 @@ private struct SkeuCardView: View {
                                     radius: 5, x: 0, y: 3)
                     }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(LiveCompletionPressStyle())
+            .disabled(state.isCompleted == true)
             // Without this VoiceOver reads the SF Symbol's name — "checkmark,
             // button" — on the Lock Screen, which says nothing about what it
             // does or to what (found in review 2026-08-26).
@@ -165,14 +213,11 @@ private struct ExpandedIsland: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(state.title)
-                    .font(state.font(15, weight: .medium))
-                    .foregroundStyle(Color(state.palette.ink))
-                    .lineLimit(2)
+                LiveCompletionTitle(state: state, size: 15, lines: 2, textColor: .white)
                 if let chip = state.chip {
                     Text(chip)
                         .font(state.font(12))
-                        .foregroundStyle(Color(state.palette.inkMuted))
+                        .foregroundStyle(.white)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -181,8 +226,10 @@ private struct ExpandedIsland: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 26))
                     .foregroundStyle(Color(state.palette.accent))
+                    .modifier(LiveCheckmarkBounce(completed: state.isCompleted == true))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(LiveCompletionPressStyle())
+            .disabled(state.isCompleted == true)
             .accessibilityLabel("Complete \(state.title)")
         }
         .padding(.horizontal, 4)

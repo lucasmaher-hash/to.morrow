@@ -28,6 +28,51 @@ import SwiftUI
 import ActivityKit
 import Shove95Kit
 
+/// ActivityKit operations at one boundary, also usable with an in-memory
+/// client in regression tests (a test host cannot request Lock Screen cards).
+@MainActor
+struct LiveActivityClient {
+    struct Card {
+        let id: String
+        let taskID: UUID
+        let state: () -> ActivityState
+        let content: () -> PinnedTaskAttributes.ContentState
+        let update: (PinnedTaskAttributes.ContentState) async -> Void
+        let end: () async -> Void
+
+        init(_ activity: Activity<PinnedTaskAttributes>) {
+            id = activity.id
+            taskID = activity.attributes.taskID
+            state = { activity.activityState }
+            content = { activity.content.state }
+            update = { await activity.update(ActivityContent(state: $0, staleDate: nil)) }
+            end = { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+
+        init(id: String, taskID: UUID, state: @escaping () -> ActivityState,
+             content: @escaping () -> PinnedTaskAttributes.ContentState,
+             update: @escaping (PinnedTaskAttributes.ContentState) async -> Void,
+             end: @escaping () async -> Void) {
+            self.id = id; self.taskID = taskID; self.state = state
+            self.content = content
+            self.update = update; self.end = end
+        }
+    }
+
+    var enabled: () -> Bool
+    var cards: () -> [Card]
+    var request: (UUID, PinnedTaskAttributes.ContentState) throws -> Card
+
+    static var system: Self {
+        .init(enabled: { ActivityAuthorizationInfo().areActivitiesEnabled },
+              cards: { Activity<PinnedTaskAttributes>.activities.map(Card.init) },
+              request: { id, state in
+                  Card(try Activity.request(attributes: PinnedTaskAttributes(taskID: id),
+                       content: ActivityContent(state: state, staleDate: nil)))
+              })
+    }
+}
+
 @MainActor
 @Observable
 final class LiveActivityController {
@@ -36,113 +81,109 @@ final class LiveActivityController {
     /// still works — it is app state — but nothing reaches the Lock Screen,
     /// and the user is told once (founder direction 2026-08-16).
     var activitiesDisabled: Bool {
-        !ActivityAuthorizationInfo().areActivitiesEnabled
+        !client.enabled()
     }
 
-    private var current: Activity<PinnedTaskAttributes>?
+    private let client: LiveActivityClient
+    private var current: LiveActivityClient.Card?
+    private var completingTasks: Set<UUID> = []
+    private let completionPause: () async -> Void
 
-    /// True while a card is being retired and its replacement requested. The
-    /// two halves straddle an `await`, and `current` is nil in between, so
-    /// reconciles arriving in that window have to wait rather than act on
-    /// what looks like an empty Lock Screen.
-    private var swapping = false
-    /// The most recent reconcile that arrived during a swap, replayed when
-    /// the swap lands. Only the last one is kept — they are all asking the
-    /// same question, "match the store", and the newest inputs are the ones
-    /// worth answering.
-    private var missedPass: (store: TaskStore, settings: AppSettings, isDark: Bool)?
+    init(client: LiveActivityClient? = nil, completionPause: (() async -> Void)? = nil) {
+        self.client = client ?? .system
+        self.completionPause = completionPause ?? {
+            // Intent cancellation must not skip the widget's final animation
+            // window. This independent delay finishes before we end the card.
+            _ = await Task.detached {
+                try? await Task.sleep(for: .seconds(PinnedTaskCompletionTiming.dismissalDelay))
+            }.value
+        }
+    }
+
+    private var reconciling = false
+    private var reconciliationTask: Task<Void, Never>?
+    private var nextPass: (store: TaskStore, settings: AppSettings, isDark: Bool)?
 
     /// Makes the Lock Screen match the store. Safe to call as often as you
     /// like — it is a no-op when nothing has changed.
     func reconcile(store: TaskStore, settings: AppSettings, isDark: Bool) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            // Permission can be revoked while an activity is up; drop the
-            // handle so a later grant starts cleanly rather than trying to
-            // update a card iOS has already taken away.
-            Task { await endAll() }
-            current = nil
-            return
-        }
-
-        // A swap is mid-flight. Requesting now is exactly how two cards for
-        // the SAME task end up on the Lock Screen: `current` was cleared
-        // synchronously, so this pass would see nothing running, fall through
-        // to the swap branch and request a second one — and only the later
-        // handle survives, leaving the first card unendable until iOS's
-        // eight-hour ceiling. Remember the pass and let the swap replay it.
-        guard !swapping else {
-            missedPass = (store, settings, isDark)
-            return
-        }
-
-        // Adopt anything already running — after a cold launch this process
-        // has no handle on the activity from the last one, and requesting a
-        // second would leave two cards on the Lock Screen.
-        // A handle whose activity iOS has already ENDED is not a running
-        // card. iOS retires every Live Activity at an eight-hour ceiling and
-        // tells nobody, so `current` stayed non-nil pointing at a dead
-        // activity — every later reconcile then `update`d into the void and
-        // the Lock Screen stayed empty for the rest of the process (found in
-        // review 2026-08-26). Dropping the stale handle lets the request path
-        // below build a fresh card.
-        if let running = current, running.activityState != .active {
-            current = nil
-        }
-
-        if current == nil {
-            // `.active` only, for the reason above — `Activity.activities` can
-            // still list one iOS has just ended.
-            let running = Activity<PinnedTaskAttributes>.activities
-                .filter { $0.activityState == .active }
-            current = running.first
-            // Retire any extras a previous run left behind. Without this a
-            // ghost from a crashed session is invisible to every code path
-            // here — `endAll` only runs when permission is revoked.
-            if running.count > 1 {
-                let extras = running.dropFirst()
-                Task { for activity in extras { await activity.end(nil, dismissalPolicy: .immediate) } }
+        nextPass = (store, settings, isDark)
+        guard !reconciling else { return }
+        reconciling = true
+        // Serialize updates AND removals, not just replacements. A new pass
+        // while an end/update is suspended must not adopt the outgoing card
+        // or overwrite a newer title with an older update.
+        reconciliationTask = Task {
+            while let pass = nextPass {
+                nextPass = nil
+                await apply(store: pass.store, settings: pass.settings, isDark: pass.isDark)
             }
-        }
-
-        guard let task = store.pinnedTask(), !task.isCompleted else {
-            let running = current
-            current = nil
-            Task { await running?.end(nil, dismissalPolicy: .immediate) }
-            return
-        }
-
-        let state = contentState(for: task, store: store, settings: settings, isDark: isDark)
-
-        if let running = current, running.attributes.taskID == task.id {
-            Task { await running.update(ActivityContent(state: state, staleDate: nil)) }
-            return
-        }
-
-        // A DIFFERENT task holds the pin. taskID is immutable for an
-        // activity's lifetime, so the old card is retired and a new one
-        // requested rather than mutated.
-        let outgoing = current
-        current = nil
-        swapping = true
-        Task {
-            await outgoing?.end(nil, dismissalPolicy: .immediate)
-            current = try? Activity.request(
-                attributes: PinnedTaskAttributes(taskID: task.id),
-                content: ActivityContent(state: state, staleDate: nil))
-            swapping = false
-            // Anything that arrived while the swap was in flight is replayed
-            // now, against the handle that actually exists.
-            if let missed = missedPass {
-                missedPass = nil
-                reconcile(store: missed.store, settings: missed.settings, isDark: missed.isDark)
-            }
+            reconciling = false
         }
     }
 
-    private func endAll() async {
-        for activity in Activity<PinnedTaskAttributes>.activities {
-            await activity.end(nil, dismissalPolicy: .immediate)
+    private func apply(store: TaskStore, settings: AppSettings, isDark: Bool) async {
+        let cards = allCards()
+        let task = client.enabled() ? store.pinnedTask() : nil
+        let wantedID = task.flatMap { $0.isCompleted ? nil : $0.id }
+        let keep = cards.first { $0.taskID == wantedID && Self.isOngoing($0.state()) }
+
+        // Also clean up duplicates while we already hold a handle, including
+        // ended cards that iOS can otherwise leave on the Lock Screen.
+        for card in cards where card.id != keep?.id && !completingTasks.contains(card.taskID) {
+            await card.end()
         }
+        current = keep
+        // Re-read the store after the await. A completion or replacement may
+        // have arrived while old cards were being dismissed.
+        if nextPass != nil { return }
+        guard let task, !task.isCompleted else { return }
+        let state = contentState(for: task, store: store, settings: settings, isDark: isDark)
+
+        if let keep {
+            if !completingTasks.contains(keep.taskID) { await keep.update(state) }
+        } else {
+            current = try? client.request(task.id, state)
+        }
+    }
+
+    /// Commit immediately, then give the widget time to draw its final state.
+    /// The same controller serves the scene and the background App Intent so
+    /// revision/foreground updates cannot retire or overwrite the card early.
+    func complete(taskID: UUID, store: TaskStore) async {
+        guard !completingTasks.contains(taskID),
+              store.anyTask(withID: taskID)?.isCompleted == false else { return }
+        completingTasks.insert(taskID)
+        defer { completingTasks.remove(taskID) }
+
+        // Finish any older title/theme update before sending the final state.
+        await reconciliationTask?.value
+        guard let task = store.anyTask(withID: taskID), !task.isCompleted else { return }
+        let cards = allCards().filter { $0.taskID == taskID && Self.isOngoing($0.state()) }
+        store.toggleCompleted(task)
+        for card in cards {
+            var finalState = card.content()
+            finalState.isCompleted = true
+            await card.update(finalState)
+        }
+        if !cards.isEmpty { await completionPause() }
+        for card in cards { await card.end() }
+        if current?.taskID == taskID { current = nil }
+    }
+
+    private func allCards() -> [LiveActivityClient.Card] {
+        var cards = client.cards()
+        // ActivityKit's list may lag immediately after a request.
+        if let current, !cards.contains(where: { $0.id == current.id }) {
+            cards.append(current)
+        }
+        return cards
+    }
+
+    static func isOngoing(_ state: ActivityState) -> Bool {
+        // Stale content still owns a card. iOS 26's pending activities also
+        // keep their identity; only ended/dismissed cards need replacing.
+        state != .ended && state != .dismissed
     }
 
     // MARK: Resolving the look

@@ -13,6 +13,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		A641B1AA308E216400907C33 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A69872323020F6EC0009D035 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A69872393020F6EC0009D035;
+			remoteInfo = shove95;
+		};
 		BB1000000000000000000B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A69872323020F6EC0009D035 /* Project object */;
@@ -39,6 +46,7 @@
 /* Begin PBXFileReference section */
 		A698723A3020F6EC0009D035 /* shove95.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = shove95.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB10000000000000000003 /* ShoveWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShoveWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC1000000000000000000001 /* shove95Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = shove95Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -50,6 +58,11 @@
 		BB10000000000000000001 /* ShoveWidgets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ShoveWidgets;
+			sourceTree = "<group>";
+		};
+		CC1000000000000000000002 /* shove95Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = shove95Tests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -77,6 +90,7 @@
 		A69872313020F6EC0009D035 = {
 			isa = PBXGroup;
 			children = (
+				CC1000000000000000000002 /* shove95Tests */,
 				A698723C3020F6EC0009D035 /* shove95 */,
 				BB10000000000000000001 /* ShoveWidgets */,
 				A698723B3020F6EC0009D035 /* Products */,
@@ -86,6 +100,7 @@
 		A698723B3020F6EC0009D035 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				CC1000000000000000000001 /* shove95Tests.xctest */,
 				A698723A3020F6EC0009D035 /* shove95.app */,
 				BB10000000000000000003 /* ShoveWidgets.appex */,
 			);
@@ -143,6 +158,25 @@
 			productReference = BB10000000000000000003 /* ShoveWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		CC1000000000000000000003 /* shove95Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC1000000000000000000004 /* Build configuration list for PBXNativeTarget "shove95Tests" */;
+			buildPhases = (
+				CC1000000000000000000005 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CC1000000000000000000006 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CC1000000000000000000002 /* shove95Tests */,
+			);
+			name = shove95Tests;
+			productName = shove95Tests;
+			productReference = CC1000000000000000000001 /* shove95Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -158,6 +192,10 @@
 					};
 					BB10000000000000000002 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					CC1000000000000000000003 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = A69872393020F6EC0009D035;
 					};
 				};
 			};
@@ -178,6 +216,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				CC1000000000000000000003 /* shove95Tests */,
 				A69872393020F6EC0009D035 /* shove95 */,
 				BB10000000000000000002 /* ShoveWidgets */,
 			);
@@ -216,6 +255,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC1000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -223,6 +269,11 @@
 			isa = PBXTargetDependency;
 			target = BB10000000000000000002 /* ShoveWidgets */;
 			targetProxy = BB1000000000000000000B /* PBXContainerItemProxy */;
+		};
+		CC1000000000000000000006 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A69872393020F6EC0009D035 /* shove95 */;
+			targetProxy = A641B1AA308E216400907C33 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -348,17 +399,19 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = shove95/shove95.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "to.morrow";
+				INFOPLIST_KEY_CFBundleDisplayName = to.morrow;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCameraUsageDescription = "to.morrow uses the camera only when you tap the camera button while editing a task, so you can attach a photo to it — a parcel label, a whiteboard, a receipt. The photo is stored with that task on your device and in your private iCloud, and is never sent anywhere else.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "to.morrow opens your photo library only when you choose to attach a picture to a task, and reads just the one you pick — for example a screenshot of an address you need later. It never scans your library, and the photo stays on your device and in your private iCloud.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -367,12 +420,12 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -397,17 +450,19 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = shove95/shove95.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "to.morrow";
+				INFOPLIST_KEY_CFBundleDisplayName = to.morrow;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCameraUsageDescription = "to.morrow uses the camera only when you tap the camera button while editing a task, so you can attach a photo to it — a parcel label, a whiteboard, a receipt. The photo is stored with that task on your device and in your private iCloud, and is never sent anywhere else.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "to.morrow opens your photo library only when you choose to attach a picture to a task, and reads just the one you pick — for example a screenshot of an address you need later. It never scans your library, and the photo stays on your device and in your private iCloud.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -416,12 +471,12 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -443,7 +498,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ShoveWidgets-Info.plist";
@@ -454,7 +509,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95.ShoveWidgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -473,7 +528,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 35875F7J33;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ShoveWidgets-Info.plist";
@@ -484,7 +539,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95.ShoveWidgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -496,6 +551,52 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CC1000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 35875F7J33;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/shove95.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/shove95";
+			};
+			name = Debug;
+		};
+		CC1000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 35875F7J33;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lucasmaher.shove95.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/shove95.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/shove95";
 			};
 			name = Release;
 		};
@@ -525,6 +626,15 @@
 			buildConfigurations = (
 				BB10000000000000000008 /* Debug */,
 				BB10000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC1000000000000000000004 /* Build configuration list for PBXNativeTarget "shove95Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC1000000000000000000007 /* Debug */,
+				CC1000000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

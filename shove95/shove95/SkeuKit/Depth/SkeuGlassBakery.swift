@@ -39,6 +39,9 @@ enum SkeuGlassBakery {
     }
 
     private static var cache: [Key: Image] = [:]
+    #if DEBUG
+    private(set) static var renderCount = 0
+    #endif
     /// One palette is live at a time, so the cache is generational rather than
     /// keyed by theme: when the palette changes, every picture in it is stale
     /// at once and the cheapest thing to do is drop the lot.
@@ -93,6 +96,9 @@ enum SkeuGlassBakery {
         // almost entirely alpha.
         renderer.isOpaque = false
         guard let rendered = renderer.uiImage else { return nil }
+        #if DEBUG
+        renderCount += 1
+        #endif
 
         let image = Image(uiImage: rendered)
         cache[key] = image

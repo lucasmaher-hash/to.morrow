@@ -9,7 +9,8 @@
 //
 //  Placement logic came from the menu overlay this replaced: global
 //  row frame → overlay space, drop below the row unless the panel would run
-//  off-screen, then flip above. Height is CALCULATED from the item table, not
+//  off-screen, then flip above and clamp to the visible bounds. Oversized
+//  menus scroll inside those bounds. Height is CALCULATED from the item table, not
 //  measured — a PreferenceKey round-trip reports zero on the first pass and
 //  the flip decision is made on that pass (the original's hard-won lesson).
 //
@@ -34,6 +35,7 @@ struct SkeuMenu: View {
     @Environment(MenuCoordinator.self) private var menu
 
     let task: TaskItem
+    var maximumSize = CGSize(width: M.width, height: CGFloat.greatestFiniteMagnitude)
 
     private var bucket: Bucket {
         task.bucket(now: store.now(), calendar: store.calendar)
@@ -42,35 +44,29 @@ struct SkeuMenu: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: M.radius, style: .continuous)
 
+        ScrollView(.vertical) {
         VStack(alignment: .leading, spacing: 0) {
-            if task.isCompleted {
-                // Completed rows: untick to act on them; only Delete applies.
-                item("Delete", destructive: true) { store.delete(task) }
-            } else {
-                ForEach(bucket.menuDestinations, id: \.label) { destination in
-                    item(destination.label) {
-                        withAnimation(.spring(duration: 0.25)) {
-                            store.move(task, to: destination.bucket)
-                        }
-                    }
-                }
-                item("Go Live", mark: true) {
-                    withAnimation(.spring(duration: 0.25)) {
-                        menu.goLive(task, store: store)
-                    }
-                }
-                separator
-                item(task.isImportant ? "Unmark Important" : "Mark as Important") {
-                    withAnimation(.spring(duration: 0.25)) {
-                        store.toggleImportant(task)
-                    }
-                }
-                separator
-                item("Delete", destructive: true) { store.delete(task) }
+            item("Delete", destructive: true) { store.delete(task) }
+            separator
+            item(task.isImportant ? "Unmark Important" : "Mark as Important") {
+                withAnimation(SkeuMotion.layout) { store.toggleImportant(task) }
             }
+            .allowsHitTesting(!task.isCompleted).opacity(task.isCompleted ? 0.4 : 1)
+            item("Go Live", mark: true) {
+                withAnimation(SkeuMotion.layout) { menu.goLive(task, store: store) }
+            }
+            .allowsHitTesting(!task.isCompleted).opacity(task.isCompleted ? 0.4 : 1)
+            separator
+            workspaceMenu
+
         }
         .padding(M.padding)
-        .frame(width: M.width, alignment: .leading)
+        }
+        .frame(width: min(M.width, maximumSize.width),
+               height: min(Self.estimatedHeight(for: task, store: store), maximumSize.height))
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollIndicators(.hidden)
+        .clipShape(shape)
         // THE SAME GLASS every other floating piece wears, frosted (founder
         // direction 2026-08-16). It used to be a flat gradient fill under a
         // contour stroke — a solid card sitting ON the app. `skeuGlass` gives
@@ -98,6 +94,36 @@ struct SkeuMenu: View {
     }
 
     /// `mark` puts the Live ring before the label.
+
+    private var workspaceMenu: some View {
+        Menu {
+            ForEach(store.workspaces(), id: \.id) { workspace in
+                Button {
+                    menu.dismiss()
+                    withAnimation(SkeuMotion.layout) {
+                        store.move(task, toWorkspace: workspace)
+                    }
+                } label: {
+                    if task.workspaceID == workspace.taskStampID {
+                        Label(workspace.name, systemImage: "checkmark")
+                    } else {
+                        Text(workspace.name)
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Text("Switch Workspace")
+                Spacer()
+                Image(systemName: "chevron.right")
+            }
+            .font(SkeuFont.at(M.label))
+            .foregroundStyle(skeu.ink)
+            .padding(.horizontal, SkeuSpace.md)
+            .frame(minHeight: M.itemHeight)
+            .contentShape(Rectangle())
+        }
+    }
     ///
     /// The move rows carry chevrons that say how FAR along the line they go.
     /// Live is not on that line, so it has no distance to state — it gets the
@@ -143,12 +169,7 @@ struct SkeuMenu: View {
 
     /// The item table is known, so the height is arithmetic — see file header.
     static func estimatedHeight(for task: TaskItem, store: TaskStore) -> CGFloat {
-        let bucket = task.bucket(now: store.now(), calendar: store.calendar)
-        let items = task.isCompleted ? 1 : bucket.menuDestinations.count + 3
-        let separators = task.isCompleted ? 0 : 2
-        return CGFloat(items) * M.itemHeight
-            + CGFloat(separators) * M.separator
-            + M.padding * 2
+        return 4 * M.itemHeight + 2 * M.separator + M.padding * 2
     }
 }
 
@@ -160,6 +181,17 @@ struct SkeuMenuOverlay: View {
     @Environment(MenuCoordinator.self) private var menu
     @Environment(TaskStore.self) private var store
 
+    static func menuFrame(for row: CGRect, in bounds: CGRect,
+                          menuSize: CGSize, gap: CGFloat) -> CGRect {
+        let width = min(menuSize.width, max(0, bounds.width))
+        let height = min(menuSize.height, max(0, bounds.height))
+        let below = row.maxY + gap
+        let preferredY = below + height <= bounds.maxY ? below : row.minY - gap - height
+        return CGRect(x: max(bounds.minX, min(row.minX, bounds.maxX - width)),
+                      y: max(bounds.minY, min(preferredY, bounds.maxY - height)),
+                      width: width, height: height)
+    }
+
     var body: some View {
         GeometryReader { geo in
             if let request = menu.request,
@@ -169,24 +201,19 @@ struct SkeuMenuOverlay: View {
                 let origin = geo.frame(in: .global).origin
                 let row = request.rowFrame.offsetBy(dx: -origin.x, dy: -origin.y)
                 let gap = SkeuSpace.sm
-                let below = row.maxY + gap
                 let height = SkeuMenu.estimatedHeight(for: task, store: store)
-                let dropsBelow = below + height <= geo.size.height
+                let bounds = CGRect(origin: .zero, size: geo.size).insetBy(dx: gap, dy: gap)
+                let placement = Self.menuFrame(for: row, in: bounds,
+                                                menuSize: CGSize(width: M.width, height: height), gap: gap)
+                let dropsBelow = placement.midY > row.midY
 
-                ZStack(alignment: dropsBelow ? .topLeading : .bottomLeading) {
+                ZStack(alignment: .topLeading) {
                     Color.clear
                         .contentShape(Rectangle())
                         .onTapGesture { menu.dismiss() }
 
-                    SkeuMenu(task: task)
-                        .fixedSize()
-                        .offset(
-                            x: max(0, min(row.minX, geo.size.width - 210 - SkeuSpace.sm)),
-                            // Flipped: bottom-anchored, so the panel's own
-                            // height positions it — no measurement needed.
-                            y: dropsBelow ? below
-                                          : (row.minY - gap) - geo.size.height
-                        )
+                    SkeuMenu(task: task, maximumSize: placement.size)
+                        .position(x: placement.midX, y: placement.midY)
                         .transition(.scale(scale: 0.86,
                                            anchor: dropsBelow ? .topLeading : .bottomLeading)
                             .combined(with: .opacity))

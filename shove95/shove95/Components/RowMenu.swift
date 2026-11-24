@@ -53,7 +53,7 @@ final class MenuCoordinator {
 
     /// Sends a task live, asking first when something already holds it.
     func goLive(_ task: TaskItem, store: TaskStore) {
-        if store.liveNote() == nil {
+        if store.liveNote() == nil || store.liveNote()?.id == task.id {
             store.makeLive(task)
         } else {
             pendingLive = task

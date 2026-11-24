@@ -40,15 +40,19 @@ struct TaskSnapshot {
 }
 
 enum LastAction {
+    case changedWorkspace(taskID: UUID, title: String, destination: String,
+                          previousWorkspaceID: String?, previousSortOrder: Double)
     case moved(taskID: UUID, title: String, to: Bucket,
-               previousDueDate: Date?, previousSortOrder: Double, previousOverduePlaced: Bool)
+               previousDueDate: Date?, previousSortOrder: Double, previousOverduePlaced: Bool,
+               previousLiveNote: Bool = false, previousPinned: Bool = false)
     case deleted(snapshot: TaskSnapshot)
 
     /// Status-panel text (voice rules: terse, no exclamation marks).
     /// `name` resolves the destination label so renamed tabs read correctly.
     func statusText(name: (Bucket) -> String) -> String {
         switch self {
-        case let .moved(_, title, destination, _, _, _): "\(title) → \(name(destination))"
+        case let .changedWorkspace(_, title, destination, _, _): "\(title) → \(destination)"
+        case let .moved(_, title, destination, _, _, _, _, _): "\(title) → \(name(destination))"
         case let .deleted(snapshot): "\(snapshot.title) deleted"
         }
     }
@@ -107,6 +111,40 @@ final class TaskStore {
     init(context: ModelContext) {
         self.context = context
         observeRemoteChanges()
+    }
+
+    /// Real, editable tasks that teach the gestures on a fresh installation.
+    /// The marker prevents completed/deleted instructions from coming back;
+    /// the store-file check at launch keeps existing installs untouched.
+    func seedStarterTasksIfNeeded(isNewInstall: Bool, defaults: UserDefaults = .standard) {
+        let key = "onboarding.starterTasks.v1"
+        guard !defaults.bool(forKey: key) else { return }
+        guard let count = try? context.fetchCount(FetchDescriptor<TaskItem>()) else { return }
+        guard isNewInstall, count == 0 else {
+            defaults.set(true, forKey: key)
+            return
+        }
+
+        let titles = [
+            "Swipe left to move to Tomorrow, or right to move back",
+            "Long press and choose Go Live to focus on one task",
+            "Long press and choose Delete to remove a task",
+            "Drag the handle on the right to reorder tasks"
+        ]
+        for (index, title) in titles.enumerated() {
+            let task = TaskItem()
+            task.title = title
+            task.dueDate = calendar.startOfDay(for: now())
+            task.sortOrder = Double(index) * 1024
+            context.insert(task)
+        }
+        do {
+            try context.save()
+            defaults.set(true, forKey: key)
+            revision += 1
+        } catch {
+            context.rollback()
+        }
     }
 
     deinit {
@@ -279,6 +317,24 @@ final class TaskStore {
         commit()
     }
 
+    func move(_ task: TaskItem, toWorkspace workspace: Workspace) {
+        guard task.workspaceID != workspace.taskStampID else { return }
+        let now = now()
+        let bucket = task.bucket(now: now, calendar: calendar)
+        let destination = ((try? context.fetch(FetchDescriptor<TaskItem>())) ?? [])
+            .filter { $0.id != task.id && $0.workspaceID == workspace.taskStampID
+                && $0.bucket(now: now, calendar: calendar) == bucket }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        lastAction = .changedWorkspace(taskID: task.id, title: task.title,
+            destination: workspace.name, previousWorkspaceID: task.workspaceID,
+            previousSortOrder: task.sortOrder)
+        task.workspaceID = workspace.taskStampID
+        task.sortOrder = Placement.sortOrderForArrival(isImportant: task.isImportant,
+            visible: destination.filter { !$0.isCompleted },
+            allInBucket: destination)
+        commit()
+    }
+
     // MARK: Queries
 
     private func allTasksSorted() -> [TaskItem] {
@@ -351,9 +407,7 @@ final class TaskStore {
     ///
     /// It used to ask `tasks(in:)` once per bucket, which is three fetches and
     /// three sorts of the whole table to produce two integers. Same semantics:
-    /// `all` counts active tasks visible in any of the three tabs, so the live
-    /// note — which is in no tab — is left out of both, exactly as summing the
-    /// three buckets did.
+    /// `all` counts active tasks visible in any of the three tabs, including the Live focus now shared with Today.
     func activeTally() -> (all: Int, today: Int) {
         let now = now()
         var all = 0
@@ -391,8 +445,9 @@ final class TaskStore {
             lastAction = .moved(
                 taskID: task.id, title: task.title, to: destination,
                 previousDueDate: task.dueDate, previousSortOrder: task.sortOrder,
-                previousOverduePlaced: task.overduePlaced)
+                previousOverduePlaced: task.overduePlaced, previousLiveNote: task.isLiveNote, previousPinned: task.isPinned)
         }
+        if destination != .today { task.isLiveNote = false; task.isPinned = false }
         task.dueDate = target
         task.overduePlaced = false
         task.sortOrder = Placement.sortOrderForArrival(
@@ -465,6 +520,18 @@ final class TaskStore {
         return grouped
             .map { (day: $0.key, tasks: $0.value.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }) }
             .sorted { $0.day > $1.day }
+    }
+
+    /// Includes tasks completed today as well as the older archive records.
+    /// Follows the archive's workspace scope.
+    func completionStatistics() -> CompletionStatistics {
+        _ = revision
+        return CompletionStatistics(tasks: allTasksSorted(), now: now(), calendar: calendar)
+    }
+
+    func completedTaskCount() -> Int {
+        _ = revision
+        return allTasksSorted().filter(\.isCompleted).count
     }
 
     // MARK: Photos (Phase 4, pulled forward 2026-08-04)
@@ -562,14 +629,15 @@ final class TaskStore {
     }
 
     /// Direct move (swipe commit or context menu). Records undo, applies
-    /// arrival placement (important → under the destination's important block).
+    /// arrival placement at the very top of the destination.
     func move(_ task: TaskItem, to bucket: Bucket) {
         let destinationActive = tasks(in: bucket).active.filter { $0 !== task }
         let destinationAll = allInBucket(bucket).filter { $0 !== task }
         lastAction = .moved(
             taskID: task.id, title: task.title, to: bucket,
             previousDueDate: task.dueDate, previousSortOrder: task.sortOrder,
-            previousOverduePlaced: task.overduePlaced)
+            previousOverduePlaced: task.overduePlaced, previousLiveNote: task.isLiveNote, previousPinned: task.isPinned)
+        if bucket != .today { task.isLiveNote = false; task.isPinned = false }
         task.dueDate = DateEngine.targetDate(for: bucket, now: now(), calendar: calendar)
         task.overduePlaced = false // dueDate changed → eligible for future rollover placement
         task.sortOrder = Placement.sortOrderForArrival(
@@ -580,12 +648,7 @@ final class TaskStore {
     /// Tick/untick. Never touches sortOrder — the completed section renders
     /// separately, so unticking restores the exact prior position.
     func toggleCompleted(_ task: TaskItem) {
-        task.isCompleted.toggle()
-        task.completedAt = task.isCompleted ? now() : nil
-        // A finished task stops following you. Unticking does NOT re-pin it —
-        // pinning is a deliberate act, and silently re-pinning something you
-        // un-ticked by accident would put it back on the Lock Screen.
-        if task.isCompleted { task.isPinned = false }
+        task.toggleCompletion(now: now(), calendar: calendar)
         commit()
     }
 
@@ -649,12 +712,14 @@ final class TaskStore {
     func setLiveNote(_ raw: String) -> TaskItem? {
         let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return nil }
-        clearLiveNote()
+        releaseLiveFocus()
         let task = TaskItem()
         task.title = title
         task.isLiveNote = true
         task.isPinned = true
         task.workspaceID = workspaceID
+        task.dueDate = calendar.startOfDay(for: now())
+        task.sortOrder = Placement.sortOrderForNewTask(allInBucket: allInBucket(.today))
         context.insert(task)
         commit()
         return task
@@ -694,24 +759,26 @@ final class TaskStore {
         commit()
     }
 
-    /// Sends an existing task to the Live section.
-    ///
-    /// Whatever held Live is DELETED, not returned to a list (founder
-    /// direction 2026-08-17, revising the first answer). Handing it back to
-    /// Today or General meant that replacing one thing quietly produced
-    /// another somewhere else — you went to Live to change what you were
-    /// doing and came away with an extra task you never asked for.
-    ///
-    /// Deletion here is not final: `delete(_:)` writes the undo snapshot, so
-    /// the bar offers it back for the few seconds anyone would notice.
-    func makeLive(_ task: TaskItem) {
-        // `!isCompleted` for the reason given on `clearLiveNote` — archived
-        // live notes are not the incumbent and must not be swept up here.
-        let descriptor = FetchDescriptor<TaskItem>(
-            predicate: #Predicate { $0.isLiveNote && !$0.isCompleted })
-        for held in (try? context.fetch(descriptor)) ?? [] where held.id != task.id {
-            delete(held)
+    /// Live is a focus on a Today task, never a detached copy. Replacing
+    /// focus leaves the previous task in Today, with all of its data intact.
+    private func releaseLiveFocus(except id: UUID? = nil) {
+        let descriptor = FetchDescriptor<TaskItem>(predicate: #Predicate { $0.isLiveNote && !$0.isCompleted })
+        for held in (try? context.fetch(descriptor)) ?? [] where held.id != id {
+            held.dueDate = calendar.startOfDay(for: now())
+            held.isLiveNote = false
+            held.isPinned = false
         }
+    }
+
+    func makeLive(_ task: TaskItem) {
+        guard !task.isCompleted else { return }
+        let alreadyToday = task.bucket(now: now(), calendar: calendar) == .today
+        let today = allInBucket(.today).filter { $0.id != task.id }
+        releaseLiveFocus(except: task.id)
+        task.dueDate = calendar.startOfDay(for: now())
+        task.overduePlaced = false
+        if !alreadyToday { task.sortOrder = Placement.sortOrderForArrival(isImportant: task.isImportant,
+            visible: today.filter { !$0.isCompleted }, allInBucket: today) }
         task.isLiveNote = true
         task.isPinned = true
         commit()
@@ -783,13 +850,54 @@ final class TaskStore {
         commit()
     }
 
+    /// A board drop changes the section and its exact insertion position in
+    /// one save. The original date/order remains the single Undo snapshot.
+    func placeOnBoard(_ task: TaskItem, in bucket: Bucket, day: Date?, before id: UUID?) {
+        let current = task.bucket(now: now(), calendar: calendar)
+        let currentDay = task.dueDate.map { calendar.startOfDay(for: $0) }
+        let targetDay = day.map { calendar.startOfDay(for: $0) }
+        let changesSection = current != bucket || (bucket == .general && currentDay != targetDay)
+        var visible = tasks(in: bucket).active.filter { $0.id != task.id }
+        if bucket == .general {
+            visible = visible.filter {
+                $0.dueDate.map { calendar.startOfDay(for: $0) } == targetDay
+            }
+        }
+        let index = id.flatMap { next in visible.firstIndex { $0.id == next } } ?? visible.count
+        let above = index > 0 ? visible[index - 1] : nil
+        let below = index < visible.count ? visible[index] : nil
+        if changesSection {
+            lastAction = .moved(taskID: task.id, title: task.title, to: bucket,
+                                previousDueDate: task.dueDate, previousSortOrder: task.sortOrder,
+                                previousOverduePlaced: task.overduePlaced, previousLiveNote: task.isLiveNote, previousPinned: task.isPinned)
+            if bucket != .today { task.isLiveNote = false; task.isPinned = false }
+            task.dueDate = bucket == .general ? targetDay
+                : DateEngine.targetDate(for: bucket, now: now(), calendar: calendar)
+            task.overduePlaced = false
+        }
+        task.sortOrder = Placement.sortOrder(between: above?.sortOrder, and: below?.sortOrder)
+        visible.insert(task, at: index)
+        if Placement.needsRenormalization(visible: visible) {
+            for (item, order) in Placement.renormalized(visible: visible) { item.sortOrder = order }
+        }
+        commit()
+    }
+
     func undoLastAction() {
         switch lastAction {
-        case let .moved(taskID, _, _, previousDueDate, previousSortOrder, previousOverduePlaced):
+        case let .changedWorkspace(taskID, _, _, previousWorkspaceID, previousSortOrder):
+            if let task = anyTask(withID: taskID) {
+                task.workspaceID = previousWorkspaceID
+                task.sortOrder = previousSortOrder
+            }
+        case let .moved(taskID, _, _, previousDueDate, previousSortOrder, previousOverduePlaced, previousLiveNote, previousPinned):
             if let task = allTasksSorted().first(where: { $0.id == taskID }) {
                 task.dueDate = previousDueDate
                 task.sortOrder = previousSortOrder
                 task.overduePlaced = previousOverduePlaced
+                if previousLiveNote, liveNote() == nil {
+                    task.isLiveNote = true; task.isPinned = previousPinned
+                }
             }
         case let .deleted(snapshot):
             let task = TaskItem()

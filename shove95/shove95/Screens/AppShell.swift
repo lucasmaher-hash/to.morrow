@@ -21,9 +21,8 @@ struct AppShell: View {
     @Environment(\.colorScheme) private var systemScheme
 
     @State private var showSettings = false
-    /// Owned HERE for the same reason the settings sheet is: the pinned task
-    /// is app-wide, so its coordinator lives above everything it outlasts.
-    @State private var activity = LiveActivityController()
+    /// Shared with the app's background Live Activity completion intent.
+    @Environment(LiveActivityController.self) private var activity
     @Environment(TaskStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
 

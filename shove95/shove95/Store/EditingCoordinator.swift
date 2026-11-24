@@ -25,18 +25,21 @@ final class EditingCoordinator {
 
     /// Scroll identity for one section's capture row. Soon carries an add row
     /// under General and under every day rather than one at the foot of the
-    /// list, so the ids have to tell them apart (founder direction
-    /// 2026-08-17). A nil day is the undated section, and keeps the plain id
-    /// so every other tab's single row is unchanged.
-    static func addRowID(for day: Date?) -> String {
-        guard let day else { return addRowID }
-        return "\(addRowID)-\(Int(day.timeIntervalSinceReferenceDate))"
+    /// list. Bucket scoping also distinguishes the three simultaneous
+    /// capture fields on the landscape board.
+    static func addRowID(for day: Date?, in bucket: Bucket) -> String {
+        let base = "\(addRowID)-\(bucket.rawValue)"
+        guard let day else { return base }
+        return "\(base)-\(Int(day.timeIntervalSinceReferenceDate))"
     }
 
     /// The add row that last committed a task. The list follows its add row
     /// down as the list grows — with one row per section, "its" means the one
     /// that was just typed into, not the one at the bottom.
     var lastAddRowID: String?
+
+    /// Requested by the floating +, claimed when the lazy capture row appears.
+    var captureRequest: String?
 
     /// A task whose editing should resume the moment its row next appears.
     ///

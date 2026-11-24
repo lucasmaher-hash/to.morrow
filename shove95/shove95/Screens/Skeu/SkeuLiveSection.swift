@@ -9,32 +9,35 @@
 //  its range; this holds exactly one thing, the thing you are doing, and it
 //  shows it the size that deserves.
 //
-//  The live note lives HERE and in no tab — see `TaskItem.isLiveNote`. Typing
+//  Live focuses the same task shown in Today. Typing
 //  it puts it on the Lock Screen straight away, because that is the whole
 //  point of typing it. The switch afterwards controls only whether it is still
-//  showing there; the text stays in this box either way. The bin is what
-//  deletes.
+//  showing there; the text stays in this box either way.
+//  The check completes the same task in Today.
 //
-//  There is no tick. Finishing a live task is something you do from the Lock
-//  Screen without opening the app — that is what makes it worth putting there
-//  — and a second tick in here would be a second place to look.
+//  Today and the Lock Screen complete the same task record; this panel stays an input.
 //
 
 import SwiftUI
 import Shove95Kit
 
 struct SkeuLiveSection: View {
+    var landscape = false
     @Environment(\.skeu) private var skeu
     @Environment(\.skeuTextScale) private var textScale
     @Environment(\.skeuChromeScale) private var chromeScale
     @Environment(TaskStore.self) private var store
-    /// Asked of the coordinator so the ROOT draws the dialog — see
-    /// `MenuCoordinator.pendingLiveDelete`.
-    @Environment(MenuCoordinator.self) private var menu
+    @Environment(LiveActivityController.self) private var activity
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var completing = false
+    @State private var completionTitle = ""
+    @State private var completionStroke: CGFloat = 0
+    @State private var completionOpacity: Double = 1
 
     /// What is being typed before it becomes the note. Empty when a note
     /// already exists — the box shows that instead.
     @State private var draft = ""
+    @State private var editingNoteID: UUID?
 
     @FocusState private var focused: Bool
 
@@ -73,11 +76,12 @@ struct SkeuLiveSection: View {
     private var textSize: CGFloat { 22 * textScale }
     /// Every control down here is the height of the ✕ and the gear.
     ///
-    /// The bin is a circle at exactly their size, so the three round controls
+    /// The check is a circle at exactly their size, so the three round controls
     /// in the app are one family; the pills beside it take the same height so
     /// the row has a single baseline (founder direction 2026-08-17).
     private var buttonH: CGFloat { SkeuTopBar.control * chromeScale }
-    private var binIcon: CGFloat { SkeuTopBar.icon * chromeScale }
+    private var verticalInset: CGFloat { landscape ? SkeuSpace.sm : SkeuSpace.xl }
+    private var controlGap: CGFloat { landscape ? SkeuSpace.sm : SkeuSpace.lg }
 
     var body: some View {
         // The height is COMPUTED from the space this screen was handed, not
@@ -88,13 +92,19 @@ struct SkeuLiveSection: View {
         // and the gear, which the founder wants left where they are
         // (2026-08-22). A slot cannot be moved by what is put in it.
         GeometryReader { geo in
-            VStack(spacing: SkeuSpace.lg) {
+            // Keep the existing inset outside the field while reducing the
+            // painted surface to 60% of its previous landscape width.
+            let fieldWidth = landscape
+                ? (geo.size.width - SkeuSpace.xl * 2) * 0.6 + SkeuSpace.xl * 2
+                : geo.size.width
+            VStack(spacing: controlGap) {
                 box(height: boxHeight(in: geo))
+                    .frame(width: fieldWidth)
                 // Directly under the box, not pushed to the floor (founder
                 // direction 2026-08-17). They act on what is IN the box, and a
                 // control parked at the far end of the screen reads as
                 // belonging to the screen instead.
-                controls
+                controls(width: geo.size.width * 0.68 * (landscape ? 0.6 : 1))
             }
             // Everything that moves is a NUMBER — this lead and the box's
             // height. It was a pair of spacers and a top/centre alignment
@@ -102,9 +112,9 @@ struct SkeuLiveSection: View {
             // through: the layout arrived at its destination in one frame
             // whatever animation it was given, which is what the founder saw
             // on the way shut (2026-08-22).
-            .padding(.top, SkeuSpace.xl + topLead(in: geo))
+            .padding(.top, verticalInset + topLead(in: geo))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.bottom, SkeuSpace.xl)
+            .padding(.bottom, verticalInset)
             .bottomGapToScreen($bottomGap)
             .onReceive(NotificationCenter.default.publisher(
                 for: UIResponder.keyboardWillChangeFrameNotification)) { note in
@@ -161,8 +171,8 @@ struct SkeuLiveSection: View {
     /// two values and the trip between them can be animated.
     private func topLead(in geo: GeometryProxy) -> CGFloat {
         guard !isExpanded else { return 0 }
-        let room = geo.size.height - SkeuSpace.xl * 2
-        let content = restingHeight + SkeuSpace.lg + buttonH
+        let room = geo.size.height - verticalInset * 2
+        let content = boxHeight(in: geo) + controlGap + buttonH
         return max(0, (room - content) / 2)
     }
 
@@ -174,6 +184,13 @@ struct SkeuLiveSection: View {
     /// keyboard covers what it covers, which is what it did before any of
     /// this.
     private func boxHeight(in geo: GeometryProxy) -> CGFloat {
+        if landscape {
+            // Fit both the field and its controls on short phones, including
+            // the space above the landscape keyboard.
+            let available = geo.size.height - verticalInset * 2
+                - controlGap - buttonH - keyboardOverlap
+            return max(44, min(restingHeight, available))
+        }
         guard isExpanded else { return restingHeight }
         let spokenFor = SkeuSpace.xl * 2   // this screen's own top and bottom
                       + SkeuSpace.lg       // the gap down to the controls
@@ -189,7 +206,14 @@ struct SkeuLiveSection: View {
     private func box(height: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: SkeuRadius.lg, style: .continuous)
 
-        return TextField("", text: $draft,
+        return Group {
+            if completing {
+                Text(completionTitle)
+                    .font(SkeuFont.at(textSize, weight: .medium))
+                    .foregroundStyle(skeu.ink).multilineTextAlignment(.center)
+                    .textRenderer(SkeuLiveStrikeRenderer(progress: completionStroke))
+            } else {
+        TextField("", text: $draft,
                          prompt: Text("What are you doing?")
                             .foregroundStyle(skeu.inkFaint),
                          axis: .vertical)
@@ -218,7 +242,7 @@ struct SkeuLiveSection: View {
             // Leaving by any other route writes too — tapping away from a
             // half-typed thought should not throw it away.
             .onChange(of: focused) { _, isFocused in
-                if !isFocused { commit() }
+                if isFocused { editingNoteID = note?.id } else { commit() }
             }
             // The box shows what IS live whenever you are not the one
             // changing it, so a note arriving from another device lands here.
@@ -226,8 +250,11 @@ struct SkeuLiveSection: View {
             .onChange(of: note?.title) { _, new in
                 if !focused { draft = new ?? "" }
             }
+            }
+        }
+        .opacity(completionOpacity)
         .frame(maxWidth: .infinity)
-        .padding(SkeuSpace.xl)
+        .padding(landscape ? SkeuSpace.sm : SkeuSpace.xl)
         // STATED, both ways. This was a `minHeight` with the ceiling left off
         // at rest, and an absent ceiling is not a value: SwiftUI had nothing
         // to travel from, so the box arrived back at its resting size in a
@@ -260,9 +287,9 @@ struct SkeuLiveSection: View {
     // MARK: The controls
 
     @ViewBuilder
-    private var controls: some View {
-        HStack(spacing: SkeuSpace.md) {
-            if note != nil {
+    private func controls(width: CGFloat) -> some View {
+        SkeuLiveControlsLayout(width: width, controlSize: buttonH) {
+            if note != nil || completing {
                 // Live or merely held in the box — the switch says which.
                 liveSwitch(on: note?.isPinned ?? false) {
                     withAnimation(SkeuMotion.tint) {
@@ -288,16 +315,10 @@ struct SkeuLiveSection: View {
             // ALWAYS present now. It used to appear only alongside a note, so
             // the row's shape changed as you typed and the two controls jumped
             // width (founder direction 2026-09-01). It greys out instead.
-            bin
-        }
-        // TWO THIRDS of the screen, centred. Run edge to edge these two read
-        // as a bar across the bottom of the section rather than as the pair of
-        // controls belonging to the box above them (founder direction
-        // 2026-08-17).
-        .containerRelativeFrame(.horizontal, alignment: .center) { width, _ in
-            width * 0.68
-        }
-        .animation(SkeuMotion.layout, value: note?.id)
+        } completion: {
+            completionButton
+        }.allowsHitTesting(!completing)
+        // Slots stay fixed while the task and ActivityKit finish independently.
     }
 
     /// Reads as what it CONTROLS, not as what it will do: lit when the note is
@@ -309,7 +330,7 @@ struct SkeuLiveSection: View {
     /// second view that looked identical and would drift.
     private func liveSwitch(on: Bool, action: @escaping () -> Void) -> some View {
         HStack(spacing: SkeuSpace.sm) {
-            LiveGlyph(tint: on ? skeu.accent : skeu.inkMuted,
+            LiveGlyph(tint: on ? skeu.ink : skeu.inkMuted,
                       lineWidth: 1.7 * chromeScale)
                 .frame(width: buttonH * 0.42, height: buttonH * 0.42)
             Text(on ? "Live" : "Off air")
@@ -341,45 +362,43 @@ struct SkeuLiveSection: View {
         .accessibilityLabel(on ? "Showing on the Lock Screen" : "Not on the Lock Screen")
     }
 
-    /// Whether there is anything in the box to throw away.
-    ///
-    /// Asked of the DRAFT rather than of `note`, because the bin answers to
-    /// what is written in front of you: text cleared but not yet committed
-    /// reads as an empty box, and a live bin beside an empty box is a control
-    /// with nothing to act on.
+    /// Completion acts on the current draft, including unsaved edits.
     private var hasText: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var bin: some View {
-        Image(systemName: "trash")
-            .font(.system(size: binIcon * 0.72))
-            .foregroundStyle(skeu.ink)
-            // GREYED when the box is empty, at exactly the weight the off-air
-            // switch beside it uses, and inert with it (founder direction
-            // 2026-09-01).
-            //
-            // Its own note from 2026-08-17 argued the opposite — full ink
-            // always, so it would not be mistaken for the muted "not on air"
-            // state next to it. That held while the bin only ever appeared
-            // beside a note, when there was always something to delete. Now it
-            // is always on screen, and half the time there is nothing: the
-            // grey is no longer borrowing the switch's meaning, it is stating
-            // its own.
+    private var completionButton: some View {
+        SkeuChromeGlyph(kind: .check, face: SkeuFont.face,
+                        size: 15.4 * chromeScale, tint: skeu.ink)
             .opacity(hasText ? 1 : 0.55)
             .animation(SkeuMotion.tint, value: hasText)
             .frame(width: buttonH, height: buttonH)
             .skeuGlass(Circle(), height: buttonH)
-            // A filled Circle is hittable only where the ink lands.
             .contentShape(Circle())
-            .skeuPress { if hasText { menu.pendingLiveDelete = true } }
-            // The press animation is part of the affordance, so the whole
-            // control stops taking touches rather than swallowing them and
-            // looking alive.
-            .allowsHitTesting(hasText)
+            .skeuPress { completeLive() }
+            .allowsHitTesting(hasText && !completing)
             .accessibilityAddTraits(.isButton)
-            .accessibilityLabel("Delete")
-            .accessibilityHidden(!hasText)
+            .accessibilityLabel("Complete Live task")
+    }
+
+    private func completeLive() {
+        guard hasText, !completing else { return }
+        commit()
+        guard let task = note, !task.isCompleted else { return }
+        completionTitle = task.title
+        completing = true; completionStroke = 0; completionOpacity = 1
+        focused = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 70))
+            withAnimation(reduceMotion ? nil : .linear(duration: 0.65)) { completionStroke = 1 }
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 650))
+            try? await Task.sleep(for: .seconds(1))
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.30)) { completionOpacity = 0 }
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 300))
+            await activity.complete(taskID: task.id, store: store)
+            draft = note?.title ?? ""
+            completing = false; completionStroke = 0; completionOpacity = 1
+        }
     }
 
     private func pill(label: String, filled: Bool,
@@ -392,6 +411,7 @@ struct SkeuLiveSection: View {
                 .foregroundStyle(skeu.ink)
         }
         .padding(.horizontal, SkeuSpace.xl)
+        .frame(maxWidth: .infinity)
         .frame(height: buttonH)
         .skeuGlass(Capsule(), height: buttonH, prominent: filled)
         .contentShape(Capsule())
@@ -400,6 +420,8 @@ struct SkeuLiveSection: View {
     }
 
     private func commit() {
+        guard !completing else { return }
+        if let editingNoteID, note?.id != editingNoteID { draft = note?.title ?? ""; return }
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
             // EMPTYING THE BOX ENDS THE NOTE (founder bug report 2026-09-01).
@@ -475,7 +497,7 @@ struct SkeuGoLiveDemo: View {
     /// recede-when-off treatment on the contents rather than on the glass.
     private var liveSwitch: some View {
         HStack(spacing: SkeuSpace.sm) {
-            LiveGlyph(tint: on ? skeu.accent : skeu.inkMuted,
+            LiveGlyph(tint: on ? skeu.ink : skeu.inkMuted,
                       lineWidth: 1.7 * chromeScale)
                 .frame(width: buttonH * 0.42, height: buttonH * 0.42)
 
@@ -532,5 +554,45 @@ struct SkeuGoLiveDemo: View {
             guard !Task.isCancelled else { return }
             pressed = false
         }
+    }
+}
+
+
+private struct SkeuLiveStrikeRenderer: TextRenderer, Animatable {
+    @Environment(\.skeu) private var skeu
+    var progress: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for line in layout {
+            for run in line { context.draw(run) }
+            let bounds = line.typographicBounds.rect
+            var path = Path()
+            path.move(to: CGPoint(x: bounds.minX, y: bounds.midY))
+            path.addLine(to: CGPoint(x: bounds.minX + bounds.width * max(0, min(1, progress)), y: bounds.midY))
+            context.stroke(path, with: .color(skeu.ink), style: StrokeStyle(lineWidth: progress > 0 ? 1.5 : 0, lineCap: .round))
+        }
+    }
+}
+
+/// One layout slot per control, independent of the primary button's label/state.
+struct SkeuLiveControlsLayout<Primary: View, Completion: View>: View {
+    var width: CGFloat
+    var controlSize: CGFloat
+    @ViewBuilder var primary: () -> Primary
+    @ViewBuilder var completion: () -> Completion
+
+    var body: some View {
+        HStack(spacing: SkeuSpace.md) {
+            primary()
+                .frame(width: max(0, width - controlSize - SkeuSpace.md), height: controlSize)
+                .transition(.identity)
+            completion()
+                .frame(width: controlSize, height: controlSize)
+                .fixedSize()
+        }
+        .frame(width: width, height: controlSize)
     }
 }

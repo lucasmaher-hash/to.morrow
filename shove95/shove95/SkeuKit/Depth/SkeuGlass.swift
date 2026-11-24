@@ -58,6 +58,11 @@ struct SkeuGlass<S: InsettableShape>: ViewModifier {
     /// the palette back over the blur, so the piece frosts without changing
     /// colour. Still no texture: a blur is a lens, not an image fill.
     var frosted: Bool = false
+    /// Reuse one corner-preserving lens image while a rounded panel resizes.
+    /// Otherwise every in-between size triggers a synchronous image bake.
+    var stretchable: Bool = false
+    /// Use the original lens layers at actual size for expanding workspace surfaces.
+    var rasterized: Bool = true
     /// Whether this piece carries the light-mode relief: a prominent one on a
     /// light page.
     ///
@@ -131,13 +136,20 @@ struct SkeuGlass<S: InsettableShape>: ViewModifier {
     /// the renderer declines, so this can only ever cost speed.
     @ViewBuilder
     private var bakedLens: some View {
+        if !rasterized {
+            SkeuGlassBackground(shape: shape, k: k, prominent: prominent && !frosted)
+                .allowsHitTesting(false)
+        } else {
         GeometryReader { proxy in
             let pad = SkeuGlassBakery.bleed(k: k)
+            let bakeSize = stretchable ? CGSize(width: height * 2, height: height * 2) : proxy.size
+            let cap = height / 2 + pad
             if let picture = SkeuGlassBakery.background(
-                shape: shape, size: proxy.size, k: k,
+                shape: shape, size: bakeSize, k: k,
                 prominent: prominent && !frosted, skeu: skeu) {
                 picture
-                    .resizable()
+                    .resizable(capInsets: stretchable
+                        ? EdgeInsets(top: cap, leading: cap, bottom: cap, trailing: cap) : EdgeInsets())
                     .frame(width: proxy.size.width + pad * 2,
                            height: proxy.size.height + pad * 2)
                     .offset(x: -pad, y: -pad)
@@ -146,6 +158,7 @@ struct SkeuGlass<S: InsettableShape>: ViewModifier {
                 SkeuGlassBackground(shape: shape, k: k,
                                     prominent: prominent && !frosted)
             }
+        }
         }
     }
 
@@ -222,8 +235,10 @@ extension View {
     func skeuGlass<S: InsettableShape>(_ shape: S,
                                        height: CGFloat = 44,
                                        prominent: Bool = true,
-                                       frosted: Bool = false) -> some View {
+                                       frosted: Bool = false,
+                                       stretchable: Bool = false,
+                                       rasterized: Bool = true) -> some View {
         modifier(SkeuGlass(shape: shape, height: height,
-                           prominent: prominent, frosted: frosted))
+                           prominent: prominent, frosted: frosted, stretchable: stretchable, rasterized: rasterized))
     }
 }

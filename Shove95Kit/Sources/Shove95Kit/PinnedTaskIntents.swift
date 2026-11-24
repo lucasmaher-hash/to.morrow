@@ -57,6 +57,8 @@ public struct CompletePinnedTaskIntent: LiveActivityIntent {
     public func perform() async throws -> some IntentResult {
         if let id = UUID(uuidString: taskID) {
             await PinnedTaskActions.complete?(id)
+            // The app owns the final-state update and delayed dismissal too,
+            // including background launches with no visible scene.
         }
         return .result()
     }

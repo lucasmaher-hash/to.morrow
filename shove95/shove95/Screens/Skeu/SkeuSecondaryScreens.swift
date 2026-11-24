@@ -223,6 +223,13 @@ struct SkeuArchiveView: View {
     var body: some View {
         SkeuSheet(title: "Archive", onClose: onClose) {
             let days = store.archivedTasksByDay()
+            let statistics = store.completionStatistics()
+            let count = statistics.total
+
+            Text("\(count) \(count == 1 ? "task" : "tasks") completed in total · ~\(statistics.dailyAverage.formatted(.number.precision(.fractionLength(1)))) / day")
+                .font(SkeuFont.at(labelSize))
+                .foregroundStyle(skeu.inkMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             if days.isEmpty {
                 Text("(empty)")

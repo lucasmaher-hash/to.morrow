@@ -13,14 +13,18 @@ import Shove95Kit
 struct shove95App: App {
     private let container: ModelContainer
     @State private var store: TaskStore
+    @State private var activity: LiveActivityController
     @State private var settings = AppSettings()
     @State private var sync = SyncStatus()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        let (container, mode) = Self.makeContainer()
+        let (container, mode, isNewStore) = Self.makeContainer()
         self.container = container
         let store = TaskStore(context: container.mainContext)
+        let activity = LiveActivityController()
+        _activity = State(initialValue: activity)
+        store.seedStarterTasksIfNeeded(isNewInstall: isNewStore)
         _store = State(initialValue: store)
         _sync = State(initialValue: SyncStatus(mode: mode))
 
@@ -37,8 +41,7 @@ struct shove95App: App {
         // CARD CARRIES rather than by whatever currently holds the pin — see
         // that method for why the difference is not academic.
         PinnedTaskActions.complete = { @MainActor id in
-            guard let task = store.anyTask(withID: id), !task.isCompleted else { return }
-            store.toggleCompleted(task) // also releases the pin
+            await activity.complete(taskID: id, store: store)
         }
     }
 
@@ -55,33 +58,35 @@ struct shove95App: App {
         Bundle.main.object(forInfoDictionaryKey: "ShoveCloudKitEnabled") as? Bool ?? false
     }
 
-    private static func makeContainer() -> (ModelContainer, SyncStatus.Mode) {
+    private static func makeContainer() -> (ModelContainer, SyncStatus.Mode, Bool) {
         let models: [any PersistentModel.Type] = [TaskItem.self, TaskPhoto.self, Workspace.self]
         let schema = Schema(models)
+        let storeURL = ModelConfiguration(schema: schema, cloudKitDatabase: .none).url
+        let isNewStore = !FileManager.default.fileExists(atPath: storeURL.path)
 
         do {
             guard cloudKitEnabled else {
                 let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
                 return (try ModelContainer(for: schema, configurations: local),
-                        .localOnly(reason: "iCloud not enabled for this build"))
+                        .localOnly(reason: "iCloud not enabled for this build"), isNewStore)
             }
             let cloud = ModelConfiguration(
                 schema: schema,
                 cloudKitDatabase: .private("iCloud.com.lucasmaher.shove95")
             )
-            return (try ModelContainer(for: schema, configurations: cloud), .syncing)
+            return (try ModelContainer(for: schema, configurations: cloud), .syncing, isNewStore)
         } catch {
             // Local store, same schema — the data is identical, only the
             // mirroring is absent.
             let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
             if let container = try? ModelContainer(for: schema, configurations: local) {
-                return (container, .localOnly(reason: error.localizedDescription))
+                return (container, .localOnly(reason: error.localizedDescription), isNewStore)
             }
             // Nothing on disk works: an in-memory store still lets the app run
             // rather than crash on launch. Nothing written here survives.
             let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             let container = try! ModelContainer(for: schema, configurations: memory)
-            return (container, .unavailable(reason: error.localizedDescription))
+            return (container, .unavailable(reason: error.localizedDescription), false)
         }
     }
 
@@ -90,6 +95,7 @@ struct shove95App: App {
             ZStack {
                 AppShell()
                 .environment(store)
+                .environment(activity)
                 .environment(settings)
                 .environment(sync)
                 .modifier(PixelScale()) // stepped 2×/3×/4× (FR-015)

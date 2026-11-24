@@ -31,6 +31,7 @@ import Foundation
 // outright (found in the 2026-08-16 audit).
 #if os(iOS)
 import ActivityKit
+import SwiftUI
 #endif
 
 /// An sRGB colour that survives the trip through ActivityKit's encoder.
@@ -89,6 +90,47 @@ public struct ActivityPalette: Codable, Hashable, Sendable {
 
 #if os(iOS)
 
+/// Shared by the widget animation and the app's delayed dismissal. The extra
+/// hold gives ActivityKit time to render the final update before it is ended.
+public enum PinnedTaskCompletionTiming {
+    public static let strikeDelay: TimeInterval = 0
+    public static let strikeDuration: TimeInterval = 0.7
+    public static let bounceSpeed: Double = 1.4
+    public static let dismissalDelay: TimeInterval = strikeDelay + strikeDuration + 0.8
+}
+
+/// Draw the strike explicitly instead of masking a duplicate Text layer.
+/// Text's own layout supplies each wrapped line's real width and position.
+public struct ActivityCompletionTextRenderer: TextRenderer {
+    public var progress: CGFloat
+    public var color: Color
+
+    public init(progress: CGFloat, color: Color) {
+        self.progress = progress
+        self.color = color
+    }
+
+    public var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    public func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for line in layout {
+            context.draw(line)
+            let bounds = line.typographicBounds.rect
+            let width = bounds.width * min(1, max(0, progress))
+            guard width > 0 else { continue }
+            var stroke = Path()
+            stroke.move(to: CGPoint(x: bounds.minX, y: bounds.midY))
+            stroke.addLine(to: CGPoint(x: bounds.minX + width, y: bounds.midY))
+            context.stroke(stroke, with: .color(color),
+                           style: StrokeStyle(lineWidth: max(1.25, bounds.height * 0.055),
+                                              lineCap: .round))
+        }
+    }
+}
+
 public struct PinnedTaskAttributes: ActivityAttributes {
 
     /// Everything that can change while the activity is running.
@@ -105,14 +147,17 @@ public struct PinnedTaskAttributes: ActivityAttributes {
         /// PostScript name of the face to draw in, or nil for the system font.
         /// The typeface is a setting, and the Lock Screen honours it.
         public var fontName: String?
+        /// Optional so cards created by an older build still decode.
+        public var isCompleted: Bool?
 
         public init(title: String, chip: String?, look: ActivityLook,
-                    palette: ActivityPalette, fontName: String?) {
+                    palette: ActivityPalette, fontName: String?, isCompleted: Bool = false) {
             self.title = title
             self.chip = chip
             self.look = look
             self.palette = palette
             self.fontName = fontName
+            self.isCompleted = isCompleted
         }
     }
 

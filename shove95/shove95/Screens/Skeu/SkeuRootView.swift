@@ -22,6 +22,10 @@ import SwiftUI
 import PhotosUI
 import Shove95Kit
 
+private extension EnvironmentValues {
+    @Entry var skeuTaskColumn = false
+}
+
 private enum F {
     /// 402pt of phone over 1495pt of frame.
     static let s: CGFloat = 402.0 / 1495.0
@@ -141,7 +145,7 @@ private enum F {
     // Task rows — no frame reference yet; sized against the bars.
     static let rowHeight: CGFloat = 44 * scaleUp      // 56.3
     static let rowGap: CGFloat = 2 * scaleUp          // 2.6
-    static let check: CGFloat = 26 * scaleUp          // 33.3
+    static let check: CGFloat = 26 * scaleUp * 0.75   // 25% smaller; hit area stays 44pt
     /// Photo thumbnail — the 64pt spec size (TASK-045), scaled
     /// up with everything else so it doesn't read small next to a bigger row.
     static let thumb: CGFloat = 64 * scaleUp          // 82.0
@@ -169,6 +173,7 @@ struct SkeuRootView: View {
     /// before it displaces the next one — see `ReorderCoordinator`.
     @State private var reorder = { let c = ReorderCoordinator(); c.rowGap = F.rowGap; return c }()
     /// How much of the list the keyboard is covering, in points.
+    @State private var transfer = TaskTransferCoordinator()
     @State private var keyboardOverlap: CGFloat = 0
     /// The keyboard's top edge in global coordinates; .infinity when hidden.
     @State private var keyboardTop: CGFloat = .infinity
@@ -215,45 +220,54 @@ struct SkeuRootView: View {
     /// `liveTab` for why the modifier could not be used as-is. §8.5 is this
     /// view's to honour now that it owns the scaling.
     @State private var livePressed = false
+    @State private var undoDragOffset = CGSize.zero
+    @State private var undoDismissalEdge: Edge = .bottom
+    @State private var interfaceOrientation: UIInterfaceOrientation = .unknown
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        GeometryReader { geometry in
+        // The geometry ignores the keyboard, so opening a field never
+        // accidentally switches a portrait phone into the board layout.
+        let landscape = geometry.size.width > geometry.size.height
         ZStack {
             skeu.canvas.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                workspaceBar
-                    .padding(.horizontal, F.margin)
-                    .padding(.top, F.marginTopLift)
-                // Tabs slide in from the side they live on: tapping a tab to
-                // the right brings its list in from the right. Only the LIST
-                // travels — the bars are furniture and hold still, so the
-                // frame reads as fixed and the content as moving through it.
-                ZStack {
-                    Group {
-                        if showLive {
-                            SkeuLiveSection()
-                        } else {
-                            taskList
-                        }
-                    }
-                        .id(showLive ? "live" : bucket.rawValue)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: goingRight ? .trailing : .leading),
-                            removal: .move(edge: goingRight ? .leading : .trailing)
-                        ))
+            if landscape {
+                HStack(spacing: SkeuSpace.sm) {
+                    mainContent(landscape: true)
+                        .ignoresSafeArea(.container, edges: .bottom)
+                    landscapeControls(availableHeight: geometry.size.height,
+                                      trailingSafeArea: geometry.safeAreaInsets.trailing,
+                                      notchOnRight: interfaceOrientation == .landscapeLeft)
+                        .zIndex(1) // the workspace menu expands over the lists
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped() // contents travel; the window never does
-                // The undo panel FLOATS over the list rather than taking
-                // layout space, so it can come and go without shifting the
-                // rows — and it sits above the tab bar, not inside it. Outside
-                // the slide, so it doesn't ride along.
-                .overlay(alignment: .bottom) { undoPanel }
-                tabBar
-                    .padding(.horizontal, F.margin)
-                    .padding(.bottom, F.marginNotch)
+                .padding(.trailing, SkeuSpace.lg)
+                .ignoresSafeArea(.container, edges: .trailing)
+            } else {
+                VStack(spacing: 0) {
+                    workspaceBar
+                        .zIndex(2)
+                        .padding(.horizontal, F.margin)
+                        .padding(.top, F.marginTopLift)
+                    mainContent(landscape: false)
+                    tabBar
+                        .padding(.horizontal, F.margin)
+                        .padding(.bottom, max(0, 12 - geometry.safeAreaInsets.bottom))
+                }
             }
+        }
+        .onChange(of: landscape) { _, _ in
+            // A floating row/menu holds global coordinates from the old
+            // orientation. Retire it before those coordinates become stale.
+            reorder.end()
+            transfer.reset()
+            menu.dismiss()
+        }
+        }
+        .background {
+            WorkspaceOrientationReader(orientation: $interfaceOrientation)
+                .allowsHitTesting(false)
         }
         // The bars are furniture: they stay put while the keyboard is up.
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -261,14 +275,22 @@ struct SkeuRootView: View {
         .overlay { SkeuMenuOverlay() }
         // And so does the row being carried — above the bars as well, since a
         // row dragged to the top of the screen passes over them.
-        .overlay { carriedRow.ignoresSafeArea() }
+        .overlay {
+            GeometryReader { geometry in
+                ZStack {
+                    carriedRow(column: geometry.size.width > geometry.size.height)
+                    transferredRow
+                }
+                .ignoresSafeArea()
+            }
+        }
         // Only one thing can be live, so sending a second one asks first.
         .overlay {
             if menu.pendingLive != nil {
                 SkeuPinReplaceDialog(
                     outgoing: store.liveNote()?.title ?? "",
                     title: "Replace what is live",
-                    message: "Something is already live. This task takes its place, and the one there now goes — the undo bar can bring it back.",
+                    message: "This task becomes Live. The previous task stays in Today.",
                     confirmLabel: "Replace"
                 ) {
                     withAnimation(SkeuMotion.layout) { menu.confirmLive(store: store) }
@@ -301,13 +323,32 @@ struct SkeuRootView: View {
         .environment(menu)
         .environment(editing)
         .environment(reorder)
+        .environment(transfer)
+        .onChange(of: transfer.targetFrame) { _, target in
+            guard target != nil else { return }
+            let session = transfer.sessionID
+            withAnimation(reduceMotion ? nil : transfer.flight, completionCriteria: .removed) {
+                transfer.flyToTarget()
+            } completion: {
+                transfer.finish(session: session)
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(220))
+                withAnimation(SkeuMotion.layout) { transfer.lower(session: session) }
+            }
+        }
+        .onChange(of: showLive) { transfer.reset() }
+        .onDisappear { transfer.reset() }
         // The store's queries are scoped to the active workspace, and this
         // view is the one that has to keep that scope pointed at the pick.
         .onAppear {
             store.seedWorkspacesIfNeeded(legacy: settings.legacyWorkspaces)
             syncWorkspaceScope()
         }
-        .onChange(of: settings.currentWorkspaceID) { syncWorkspaceScope() }
+        .onChange(of: settings.currentWorkspaceID) {
+            transfer.reset()
+            syncWorkspaceScope()
+        }
         .onChange(of: store.revision) { syncWorkspaceScope() }
         // A row that just sent itself to another day names the tab it landed
         // on — see `EditingCoordinator.followTo`. Going there is what keeps
@@ -317,6 +358,15 @@ struct SkeuRootView: View {
             guard let destination else { return }
             editing.followTo = nil
             select(destination)
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+            guard let change = KeyboardDock.read(note, clearance: bottomGap) else { return }
+            keyboardAnimation = change.animation
+            withAnimation(change.animation) {
+                keyboardTop = change.top
+                keyboardOverlap = change.overlap
+            }
         }
         // Fires at midnight, timezone changes and clock changes (PRD §2).
         // Without it a task left overnight never gets its arrival placement
@@ -331,27 +381,60 @@ struct SkeuRootView: View {
 
     // MARK: Workspace bar — node 2:654
 
+    private func mainContent(landscape: Bool) -> some View {
+        ZStack {
+            Group {
+                if showLive {
+                    SkeuLiveSection(landscape: landscape)
+                } else if landscape {
+                    landscapeBoard
+                } else {
+                    taskList(for: bucket)
+                }
+            }
+            .id(showLive ? "live" : (landscape ? "board" : bucket.rawValue))
+            .transition(.asymmetric(
+                insertion: .move(edge: goingRight ? .trailing : .leading),
+                removal: .move(edge: goingRight ? .leading : .trailing)
+            ))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .overlay {
+            GeometryReader { geometry in
+                undoPanel
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, bottomBarHeight)
+                    .frame(height: geometry.size.height + bottomBarHeight)
+                    // A stationary fade over the navigation: the panel moves
+                    // through it and is fully hidden below the bottom bar.
+                    .mask(alignment: .top) {
+                        VStack(spacing: 0) {
+                            Rectangle()
+                                .frame(height: geometry.size.height)
+                            LinearGradient(colors: [.black, .clear],
+                                           startPoint: .top, endPoint: .bottom)
+                                .frame(height: bottomBarHeight)
+                        }
+                    }
+            }
+        }
+    }
+
     private var workspaceBar: some View {
         HStack(alignment: .top, spacing: 0) {
             SkeuWorkspacePill()
-
             Spacer(minLength: SkeuSpace.sm)
+            settingsControl(size: SkeuTopBar.control * chromeScale)
+        }
+    }
 
-            // The gear stands in for the frame's ✚ — this screen still has to
-            // reach Settings, and there is nowhere else yet.
-            Group {
-                // Shared with the ✕ that closes every sheet — see SkeuTopBar.
-                let size = SkeuTopBar.control * chromeScale
-                // Pixel under Retro and Blend, the system symbol under
-                // System — see SkeuChromeGlyph.
-                SkeuChromeGlyph(kind: .gear, face: settings.skeuFace,
-                                size: SkeuTopBar.icon * chromeScale, tint: skeu.ink)
-                    .frame(width: size, height: size)
-                    .rotationEffect(.degrees(Double(gearTurns) * 180))
-                    .skeuGlass(Circle(), height: size)
-            }
-            // Half a turn on every press (founder direction 2026-08-17),
-            // accumulated rather than toggled so it keeps turning one way.
+    private func settingsControl(size: CGFloat) -> some View {
+        SkeuChromeGlyph(kind: .gear, face: settings.skeuFace,
+                        size: SkeuTopBar.icon * size / SkeuTopBar.control, tint: skeu.ink)
+            .frame(width: size, height: size)
+            .rotationEffect(.degrees(Double(gearTurns) * 180))
+            .skeuGlass(Circle(), height: size)
             .skeuPress {
                 withAnimation(SkeuMotion.layout) { gearTurns += 1 }
                 showSettings = true
@@ -359,12 +442,59 @@ struct SkeuRootView: View {
             .frame(minWidth: SkeuControl.minTouch, minHeight: SkeuControl.minTouch)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Settings")
+    }
+
+    private func landscapeControls(availableHeight: CGFloat, trailingSafeArea: CGFloat,
+                                   notchOnRight: Bool) -> some View {
+        let size = SkeuControl.minTouch * chromeScale
+        return VStack(spacing: SkeuSpace.md * chromeScale) {
+            settingsControl(size: size)
+            SkeuWorkspacePill(compact: true, controlSize: size,
+                              menuMaxHeight: max(size, availableHeight - size * 2
+                                                 - SkeuSpace.xl - SkeuSpace.md * 3),
+                              menuTrailingInset: notchOnRight
+                                ? max(0, trailingSafeArea - SkeuSpace.lg + SkeuSpace.sm) : 0)
+                .zIndex(1)
+            Spacer(minLength: SkeuSpace.md)
+            liveControl(controlHeight: size, togglesBoard: true)
         }
+        .frame(width: size + SkeuSpace.sm)
+        .padding(.top, SkeuSpace.xl)
+        .padding(.bottom, SkeuSpace.md)
     }
 
     // MARK: Task list
 
-    private var taskList: some View {
+    private var landscapeBoard: some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Bucket.line, id: \.self) { line in
+                if line != Bucket.line.first {
+                    Rectangle()
+                        .fill(skeu.inkFaint.opacity(0.18))
+                        .frame(width: 1)
+                        .padding(.vertical, SkeuSpace.md)
+                        .accessibilityHidden(true)
+                }
+                VStack(spacing: 0) {
+                    Text(settings.name(for: line))
+                        .font(SkeuFont.at(labelSize, weight: .semibold))
+                        .foregroundStyle(skeu.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, SkeuSpace.sm)
+                        .padding(.vertical, SkeuSpace.sm)
+                        .lineLimit(1)
+                        .accessibilityAddTraits(.isHeader)
+                    taskList(for: line, column: true)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding(.leading, -9.5)
+        .padding(.trailing, -6)
+        .padding(.top, SkeuSpace.lg)
+    }
+
+    private func taskList(for bucket: Bucket, column: Bool = false) -> some View {
         let (active, completed) = store.tasks(in: bucket)
 
         // ScrollView, not List — List eats the horizontal pans the app's core
@@ -403,21 +533,23 @@ struct SkeuRootView: View {
                     ForEach(store.soonSections()) { section in
                         sectionHeading(section.day.map {
                             DayHeading.label(for: $0, calendar: .current)
-                        } ?? "General", day: section.day)
+                        } ?? "General", day: section.day, column: column)
 
                         // The block folds away entire: a section shut is a
                         // section with nothing showing, and a stray capture row
                         // under a closed heading belongs to nothing visible.
                         if !settings.isCollapsed(section.day) {
                             ForEach(section.active, id: \.id) { task in
-                                reorderRow(task, in: section.active)
+                                reorderRow(task, in: section.active, bucket: bucket, day: section.day, column: column)
                                     .id(task.id.uuidString)
                             }
+
+                            boardInsertionGap(in: .init(bucket: bucket, day: section.day), before: nil)
 
                             if !section.completed.isEmpty {
                                 Color.clear.frame(height: F.rowGap)
                                 ForEach(section.completed, id: \.id) { task in
-                                    taskRow(task)
+                                    taskRow(task, listBucket: bucket)
                                         .id(task.id.uuidString)
                                 }
                             }
@@ -428,18 +560,21 @@ struct SkeuRootView: View {
                             // section. Soon therefore has NO trailing add row —
                             // the last day's is the bottom one.
                             SkeuAddRow(bucket: bucket, day: section.day)
-                                .id(EditingCoordinator.addRowID(for: section.day))
+                                .id(EditingCoordinator.addRowID(for: section.day, in: bucket))
                                 // Soon's capture row answers to the walkthrough
                                 // too, and General's is the one that stands in:
                                 // it is the block a task lands in when no day
                                 // is chosen (code review 2026-08-17).
+                        } else {
+                            boardInsertionGap(in: .init(bucket: bucket, day: section.day), before: nil)
                         }
                     }
                 } else {
                     ForEach(active, id: \.id) { task in
-                        reorderRow(task, in: active)
+                        reorderRow(task, in: active, bucket: bucket, column: column)
                             .id(task.id.uuidString)
                     }
+                    boardInsertionGap(in: .init(bucket: bucket), before: nil)
                 }
 
                 // Soon's completed tasks sit inside their own block above; only
@@ -447,17 +582,17 @@ struct SkeuRootView: View {
                 if bucket != .general, !completed.isEmpty {
                     Color.clear.frame(height: F.rowGap)
                     ForEach(completed, id: \.id) { task in
-                        taskRow(task)
+                        taskRow(task, listBucket: bucket)
                             .id(task.id.uuidString)
                     }
                 }
 
                 if bucket != .general {
                     SkeuAddRow(bucket: bucket)
-                        .id(EditingCoordinator.addRowID)
+                        .id(EditingCoordinator.addRowID(for: nil, in: bucket))
                 }
             }
-            .padding(.vertical, SkeuSpace.lg)
+            .padding(.vertical, column ? SkeuSpace.xs : SkeuSpace.lg)
             // The MARGIN is on the ROWS, not on anything that clips.
             //
             // A ScrollView clips to its own bounds, so every enclosing inset
@@ -467,7 +602,10 @@ struct SkeuRootView: View {
             // off the outer clip and left this one in place). The rows are
             // inset exactly as before; nothing between them and the screen
             // edge is.
-            .padding(.horizontal, F.margin)
+            .padding(.horizontal, column ? SkeuSpace.sm : F.margin)
+            .animation(reduceMotion ? nil : ReorderCoordinator.displace, value: transfer.boardDrop)
+            .animation(reduceMotion ? nil : ReorderCoordinator.displace, value: transfer.isBoardDrag)
+            .animation(reduceMotion ? nil : ReorderCoordinator.displace, value: transfer.phase)
         }
         // Follow the add row down as the list grows. Committing a task inserts
         // it exactly where the add row was standing, which pushes the add row
@@ -479,10 +617,12 @@ struct SkeuRootView: View {
             guard new > old else { return } // only on ADD, never on delete
             // Follow the row that was TYPED INTO, not the one at the bottom:
             // with an add row per section, the two are usually different.
-            let target = editing.lastAddRowID ?? EditingCoordinator.addRowID
+            guard let target = editing.lastAddRowID,
+                  ownsField(target, in: bucket) else { return }
             withAnimation(SkeuMotion.layout) {
                 proxy.scrollTo(target, anchor: .bottom)
             }
+            editing.lastAddRowID = nil
         }
         // Go to the task that just took an edit to another day. The list is
         // LAZY, so this is not a convenience — the row does not exist until
@@ -492,8 +632,27 @@ struct SkeuRootView: View {
         // Deferred a runloop turn for the same reason the workspace change is:
         // the section it landed in is being built on this very pass, so a
         // `scrollTo` run inline aims at the list as it was before the move.
+        .onChange(of: transfer.destination) { _, destination in
+            guard column, destination == bucket, let id = transfer.taskID else { return }
+            Task { @MainActor in
+                // Visible rows report their landing frame first. Only reveal
+                // the destination if it is lazy/offscreen; never pan a column
+                // after the flight has already acquired its target.
+                await Task.yield()
+                guard transfer.taskID == id, transfer.isWaiting else { return }
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    if transfer.isBoardDrag {
+                        proxy.scrollTo(id.uuidString, anchor: .center)
+                    } else {
+                        proxy.scrollTo(Self.topAnchor, anchor: .top)
+                    }
+                }
+            }
+        }
         .onChange(of: editing.reopenTaskID) { _, id in
-            guard let id else { return }
+            guard let id, ownsField(id.uuidString, in: bucket) else { return }
             Task { @MainActor in
                 withAnimation(SkeuMotion.layout) {
                     proxy.scrollTo(id.uuidString, anchor: .center)
@@ -506,9 +665,24 @@ struct SkeuRootView: View {
             // layout the list had before it — but the 80ms this used to wait
             // was long enough to read as a second, later movement chasing the
             // keyboard (founder bug report 2026-08-17).
-            Task { @MainActor in liftFocusedFieldIfCovered(proxy) }
+            Task { @MainActor in liftFocusedFieldIfCovered(proxy, in: bucket) }
         }
-        .onChange(of: keyboardTop) { _, _ in liftFocusedFieldIfCovered(proxy) }
+        .onChange(of: keyboardTop) { _, _ in liftFocusedFieldIfCovered(proxy, in: bucket) }
+        .scrollDisabled(reorder.isDragging || transfer.taskID != nil)
+        .task(id: transfer.isBoardDrag) {
+            guard column else { return }
+            while transfer.isBoardDrag, transfer.phase == .dragging, !Task.isCancelled {
+                let order = bucket == .general
+                    ? store.soonSections().flatMap { $0.active.map(\.id) }
+                    : store.tasks(in: bucket).active.map(\.id)
+                if let target = transfer.boardScrollTarget(in: bucket, order: order) {
+                    withAnimation(reduceMotion ? nil : .linear(duration: 0.12)) {
+                        proxy.scrollTo(target.id.uuidString, anchor: target.downward ? .bottom : .top)
+                    }
+                }
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+        }
         .scrollDismissesKeyboard(.interactively)
         // The give at the limit is what tells you the list ended.
         .scrollBounceBehavior(.always, axes: .vertical)
@@ -519,19 +693,19 @@ struct SkeuRootView: View {
         // here — this inset replaces it.
         .contentMargins(.bottom, keyboardOverlap, for: .scrollContent)
         .bottomGapToScreen($bottomGap)
-        .onReceive(NotificationCenter.default.publisher(
-            for: UIResponder.keyboardWillChangeFrameNotification)) { note in
-            guard let change = KeyboardDock.read(note, clearance: bottomGap) else { return }
-            keyboardTop = change.top
-            // Held so the lift travels on the same curve — see KeyboardDock
-            // for why the keyboard's own is the only right one.
-            keyboardAnimation = change.animation
-            withAnimation(change.animation) { keyboardOverlap = change.overlap }
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .task { recordTransferViewport(geometry.frame(in: .global), bucket: bucket) }
+                    .onChange(of: geometry.frame(in: .global)) { _, frame in
+                        recordTransferViewport(frame, bucket: bucket)
+                    }
+            }
         }
         // Both bars are docked and the list runs out under them, so each edge
         // dissolves rather than cutting — and only once there is something
         // past it to dissolve. See SkeuEdgeFade.
-        .skeuScrollEdgeFade(F.edgeFade * chromeScale)
+        .skeuScrollEdgeFade((column ? 10 : F.edgeFade) * chromeScale)
         .onChange(of: settings.currentWorkspaceID) {
             // DEFERRED a runloop turn. The scope sync and the store's re-query
             // run on this same change, so scrolling inline aims at the list
@@ -545,15 +719,38 @@ struct SkeuRootView: View {
                 withTransaction(t) { proxy.scrollTo(Self.topAnchor, anchor: .top) }
             }
         }
+        .modifier(SkeuQuickAdd(hidden: keyboardOverlap > 0, compact: column,
+                               targetID: EditingCoordinator.addRowID(for: nil, in: bucket)) {
+            let target = EditingCoordinator.addRowID(for: nil, in: bucket)
+            if bucket == .general, settings.isCollapsed(nil) { settings.toggleCollapsed(nil) }
+            withAnimation(SkeuMotion.layout) { proxy.scrollTo(target, anchor: .bottom) }
+            editing.captureRequest = target
+        })
         } // ScrollViewReader
+        .environment(\.skeuTaskColumn, column)
     }
 
     /// Docks the focused field just above the keyboard — but ONLY if the
     /// keyboard is actually covering it. A field already in the clear stays
     /// exactly where it is (founder spec 2026-08-04); yanking it would be as
     /// disorienting as hiding it.
-    private func liftFocusedFieldIfCovered(_ proxy: ScrollViewProxy) {
+    private func ownsField(_ id: String, in bucket: Bucket) -> Bool {
+        if id.hasPrefix(EditingCoordinator.addRowID(for: nil, in: bucket)) { return true }
+        guard let taskID = UUID(uuidString: id), let task = store.anyTask(withID: taskID) else { return false }
+        return task.bucket(now: store.now(), calendar: store.calendar) == bucket
+    }
+
+    private func recordTransferViewport(_ frame: CGRect, bucket: Bucket) {
+        transfer.recordBoardViewport(frame, in: bucket)
+        var visible = frame
+        // Keep the arrival clear of the floating Undo bar as well.
+        visible.size.height = max(1, visible.height - 60 * chromeScale)
+        transfer.recordViewport(visible, in: bucket)
+    }
+
+    private func liftFocusedFieldIfCovered(_ proxy: ScrollViewProxy, in bucket: Bucket) {
         guard let id = editing.focused, editing.focusedBottom > 0 else { return }
+        guard ownsField(id, in: bucket) else { return }
         guard editing.focusedBottom + SkeuSpace.md > keyboardTop else { return }
         withAnimation(keyboardAnimation) {
             proxy.scrollTo(id, anchor: .bottom)
@@ -566,8 +763,9 @@ struct SkeuRootView: View {
     /// and keeps its stale look after a toggle — the task moved to the
     /// completed section but kept rendering unchecked (caught on device
     /// 2026-08-13).
-    private func taskRow(_ task: TaskItem, siblings: [TaskItem] = []) -> some View {
-        SkeuTaskRow(task: task, siblings: siblings)
+    private func taskRow(_ task: TaskItem, siblings: [TaskItem] = [],
+                         listBucket: Bucket? = nil, listDay: Date? = nil) -> some View {
+        SkeuTaskRow(task: task, siblings: siblings, listBucket: listBucket, listDay: listDay)
     }
 
     /// A row in the list, which gets out of the way when a neighbour is being
@@ -579,12 +777,41 @@ struct SkeuRootView: View {
     ///
     /// Only the rows getting out of the way are animated; nothing else here
     /// moves under its own steam.
-    private func reorderRow(_ task: TaskItem, in siblings: [TaskItem]) -> some View {
+    private func reorderRow(_ task: TaskItem, in siblings: [TaskItem], bucket: Bucket,
+                            day: Date? = nil, column: Bool = false) -> some View {
         let shift = reorder.offset(for: task.id)
-        return taskRow(task, siblings: siblings)
-            .opacity(reorder.isDragging(task.id) ? 0 : 1)
-            .offset(y: shift)
-            .animation(ReorderCoordinator.displace, value: shift)
+        let section = TaskTransferCoordinator.BoardSection(bucket: bucket, day: day)
+        let source = column && transfer.isBoardPreview && transfer.taskID == task.id
+        return VStack(spacing: 0) {
+            boardInsertionGap(in: section, before: task.id, rowGap: F.rowGap)
+            taskRow(task, siblings: siblings, listBucket: bucket, listDay: day)
+                .opacity(reorder.isDragging(task.id) ? 0 : 1)
+                .offset(y: shift)
+                .animation(ReorderCoordinator.displace, value: shift)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                    if column { transfer.recordBoardRow(frame, id: task.id, section: section) }
+                }
+                .onDisappear {
+                    if column { transfer.forgetBoardRow(task.id, section: section) }
+                }
+        }
+        // Keep the source view/gesture alive, but give its space to the live
+        // placeholder. Every list now reflows while the finger is still down.
+        .frame(height: source ? 0 : nil, alignment: .top)
+        .padding(.bottom, source ? -F.rowGap : 0)
+        .opacity(source ? 0 : 1)
+    }
+
+    @ViewBuilder
+    private func boardInsertionGap(in section: TaskTransferCoordinator.BoardSection,
+                                    before id: UUID?, rowGap: CGFloat = 0) -> some View {
+        let height = transfer.boardGapHeight(in: section, before: id, rowGap: rowGap)
+        if height > 0 {
+            Color.clear
+                .frame(height: height)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 
     /// The row under the finger, drawn OVER everything.
@@ -593,17 +820,37 @@ struct SkeuRootView: View {
     /// itself. It is placed in global coordinates from the frame the row had
     /// when it was picked up, plus however far the finger has gone since.
     @ViewBuilder
-    private var carriedRow: some View {
+    private func carriedRow(column: Bool) -> some View {
         if let task = reorder.carriedTask {
             let frame = reorder.grabFrame
             SkeuTaskRow(task: task, siblings: [], carried: true)
+                .environment(\.skeuTaskColumn, column)
                 .frame(width: frame.width)
                 // A little bigger and off the page. Small on purpose — the row
                 // is being carried, not thrown.
-                .scaleEffect(1.03)
-                .shadow(color: skeu.shadow.opacity(0.30), radius: 16, y: 10)
+                .scaleEffect(reorder.isSettling ? 1 : 1.03)
+                .shadow(color: skeu.shadow.opacity(reorder.isSettling ? 0 : 0.30), radius: 16, y: 10)
                 .position(x: frame.midX, y: frame.midY + reorder.travel)
                 .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private var transferredRow: some View {
+        if let task = transfer.task {
+            let frame = transfer.frame
+            SkeuTaskRow(task: task, siblings: [], carried: true)
+                .environment(\.skeuTaskColumn, true)
+                .frame(width: frame.width, height: frame.height, alignment: .top)
+                .scaleEffect(reduceMotion ? 1 : (transfer.isLifted ? 1.03 : 1))
+                .shadow(color: skeu.shadow.opacity(transfer.isLifted ? 0.16 : 0),
+                        radius: transfer.isLifted ? 10 : 0, x: -3,
+                        y: transfer.isLifted ? 8 : 0)
+                .animation(reduceMotion ? SkeuMotion.tint : ReorderCoordinator.lift,
+                           value: transfer.isLifted)
+                .position(x: frame.midX, y: frame.midY)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 
@@ -623,6 +870,7 @@ struct SkeuRootView: View {
 /// and typing under one day would show the same half-written task under all
 /// of them.
 private struct SkeuAddRow: View {
+    @Environment(\.skeuTaskColumn) private var column
     let bucket: Bucket
     /// The section this row sits under, and therefore the date it stamps on
     /// what it creates. nil is the undated section — General in Soon, and the
@@ -673,7 +921,7 @@ private struct SkeuAddRow: View {
     private var effectiveDay: Date? { pendingDay ?? day }
 
     /// This row's own scroll and focus identity — one per section in Soon.
-    private var rowID: String { EditingCoordinator.addRowID(for: day) }
+    private var rowID: String { EditingCoordinator.addRowID(for: day, in: bucket) }
 
     /// The two glyphs take the "add" placeholder's ink until something is
     /// typed, and the full ink after (founder direction 2026-08-17).
@@ -686,97 +934,61 @@ private struct SkeuAddRow: View {
     }
 
     var body: some View {
-        HStack(spacing: F.glassGap) {
-            ZStack {}
-                .frame(width: checkSize, height: checkSize)
-                .skeuGlass(Circle(), height: checkSize, prominent: false)
-                .frame(width: SkeuControl.minTouch, height: SkeuControl.minTouch)
-                .contentShape(Rectangle())
-                .onTapGesture { addFocused = true }
-
-            // Vertical axis so a long entry wraps and the row grows a line at a
-            // time. That growth is the ONLY way a
-            // line is added — Return is a commit, never a break.
-            TextField("", text: returnCommittingAdd,
-                      prompt: Text("add").foregroundStyle(skeu.inkFaint),
-                      axis: .vertical)
-                .lineLimit(1...4)
-                .font(SkeuFont.at(labelSize))
-                .foregroundStyle(skeu.ink)
-                .focused($addFocused)
-                .submitLabel(.done)
-                // BOTH Return paths — see AddRowView.returnCommitting for why
-                // intercepting only one of them fails on device.
-                .onSubmit { commitAdd(title: draft) }
-                .onChange(of: addFocused) { _, isFocused in
-                    if isFocused {
-                        editing.begin(rowID, bottom: addRowFrame.maxY)
-                    } else {
-                        editing.end(rowID)
-                    }
-                }
-
-            // Photos picked mid-composition wait here, visibly, until commit.
-            ForEach(Array(pendingPhotos.enumerated()), id: \.offset) { _, data in
-                if let image = PhotoCache.image(data) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: checkSize, height: checkSize)
-                        .clipShape(RoundedRectangle(cornerRadius: SkeuRadius.xs,
-                                                    style: .continuous))
-                }
-            }
-
-            // NO pin here. A task becomes live by being typed into the Live
-            // section, and that is the only door (founder direction
-            // 2026-08-17).
-
-
-            if addFocused {
-                Button {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        showSourceChoice = true
-                    } else {
-                        showPhotoPicker = true
-                    }
-                } label: {
-                    // A BARE glyph — no glass circle behind it (founder
-                    // direction 2026-08-14). It keeps the full-size frame so
-                    // the tap target stays honest; only the surface is gone.
-                    Image(systemName: "camera")
-                        .font(SkeuFont.at(glyphSize, weight: .medium))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(controlInk)
-                        .frame(width: glyphBox, height: glyphBox)
-                }
-                .buttonStyle(.plain)
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
-                .accessibilityLabel("Add photo to new task")
-            }
-
-            // The calendar, AFTER the camera — which is where editing a task
-            // puts it. It used to sit BEFORE the camera here, so the pair
-            // swapped sides between writing a task and editing one, and you
-            // had to look for the same control twice (founder bug report
-            // 2026-08-17).
-            //
-            // Drawn in the same ink as the camera, never in the accent. It
-            // used to light up once a day was chosen; that made two controls
-            // standing side by side look like different KINDS of thing, and
-            // the row already says which day it belongs to — its heading is
-            // directly above it (founder direction 2026-08-17).
-            if addFocused, bucket == .general {
-                Image(systemName: "calendar")
-                    .font(SkeuFont.at(glyphSize, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(controlInk)
-                    .frame(width: glyphBox, height: glyphBox)
-                    .frame(width: SkeuControl.minTouch, height: rowH)
+        VStack(spacing: 0) {
+            HStack(spacing: F.glassGap) {
+                ZStack {}
+                    .frame(width: checkSize, height: checkSize)
+                    .overlay { Circle().strokeBorder(skeu.inkFaint, lineWidth: labelSize * 0.065) }
+                    .frame(width: SkeuControl.minTouch, height: SkeuControl.minTouch)
                     .contentShape(Rectangle())
-                    .onTapGesture { SkeuHaptic.press(); showAddDayPicker = true }
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-                    .accessibilityLabel("Schedule")
+                    .onTapGesture { addFocused = true }
+
+                // Vertical axis so a long entry wraps and the row grows a line at a
+                // time. That growth is the ONLY way a
+                // line is added — Return is a commit, never a break.
+                TextField("", text: returnCommittingAdd,
+                          prompt: Text("add").foregroundStyle(skeu.inkFaint),
+                          axis: .vertical)
+                    .lineLimit(1...4)
+                    .font(SkeuFont.at(labelSize))
+                    .foregroundStyle(skeu.ink)
+                    .focused($addFocused)
+                    .submitLabel(.done)
+                    // BOTH Return paths — see AddRowView.returnCommitting for why
+                    // intercepting only one of them fails on device.
+                    .onSubmit { commitAdd(title: draft) }
+                    .onChange(of: addFocused) { _, isFocused in
+                        if isFocused {
+                            editing.begin(rowID, bottom: addRowFrame.maxY)
+                        } else {
+                            editing.end(rowID)
+                        }
+                    }
+
+                // Photos picked mid-composition wait here, visibly, until commit.
+                ForEach(Array(pendingPhotos.enumerated()), id: \.offset) { _, data in
+                    if let image = PhotoCache.image(data) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: checkSize, height: checkSize)
+                            .clipShape(RoundedRectangle(cornerRadius: SkeuRadius.xs,
+                                                        style: .continuous))
+                    }
+                }
+
+                // NO pin here. A task becomes live by being typed into the Live
+                // section, and that is the only door (founder direction
+                // 2026-08-17).
+
+
+                if !column { addControls }
+            }
+            if column && addFocused {
+                HStack(spacing: F.glassGap) {
+                    Spacer(minLength: 0)
+                    addControls
+                }
             }
         }
         .padding(.leading, max(0, SkeuSpace.xs - F.edgeNudge))
@@ -789,6 +1001,12 @@ private struct SkeuAddRow: View {
                     .onChange(of: proxy.frame(in: .global)) { _, new in addRowFrame = new }
                     .task { addRowFrame = proxy.frame(in: .global) }
             }
+        }
+        .anchorPreference(key: SkeuCaptureBounds.self, value: .bounds) { [rowID: $0] }
+        .task(id: editing.captureRequest) {
+            guard editing.captureRequest == rowID else { return }
+            addFocused = true
+            editing.captureRequest = nil
         }
         .photosPicker(isPresented: $showPhotoPicker, selection: $pickedItem, matching: .images)
         .sheet(isPresented: $showAddDayPicker) {
@@ -822,6 +1040,55 @@ private struct SkeuAddRow: View {
                 }
                 pickedItem = nil
             }
+        }
+    }
+
+    @ViewBuilder
+    private var addControls: some View {
+        if addFocused {
+            Button {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    showSourceChoice = true
+                } else {
+                    showPhotoPicker = true
+                }
+            } label: {
+                // A BARE glyph — no glass circle behind it (founder
+                // direction 2026-08-14). It keeps the full-size frame so
+                // the tap target stays honest; only the surface is gone.
+                Image(systemName: "camera")
+                    .font(SkeuFont.at(glyphSize, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(controlInk)
+                    .frame(width: glyphBox, height: glyphBox)
+            }
+            .buttonStyle(.plain)
+            .transition(.scale(scale: 0.6).combined(with: .opacity))
+            .accessibilityLabel("Add photo to new task")
+        }
+
+        // The calendar, AFTER the camera — which is where editing a task
+        // puts it. It used to sit BEFORE the camera here, so the pair
+        // swapped sides between writing a task and editing one, and you
+        // had to look for the same control twice (founder bug report
+        // 2026-08-17).
+        //
+        // Drawn in the same ink as the camera, never in the accent. It
+        // used to light up once a day was chosen; that made two controls
+        // standing side by side look like different KINDS of thing, and
+        // the row already says which day it belongs to — its heading is
+        // directly above it (founder direction 2026-08-17).
+        if addFocused, bucket == .general {
+            Image(systemName: "calendar")
+                .font(SkeuFont.at(glyphSize, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(controlInk)
+                .frame(width: glyphBox, height: glyphBox)
+                .frame(width: SkeuControl.minTouch, height: rowH)
+                .contentShape(Rectangle())
+                .onTapGesture { SkeuHaptic.press(); showAddDayPicker = true }
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+                .accessibilityLabel("Schedule")
         }
     }
 
@@ -883,7 +1150,7 @@ extension SkeuRootView {
     // MARK: Undo
 
     /// Appears only when there is a last action to report, and retires itself
-    /// after six seconds — any further mutation restarts the clock. Built as a
+    /// after four seconds — any further mutation restarts the clock. Built as a
     /// trough with a glass Undo pill, the same vocabulary as the bars.
     @ViewBuilder
     private var undoPanel: some View {
@@ -927,17 +1194,62 @@ extension SkeuRootView {
             // being cut into it. `recess` is the same stock a shade darker,
             // which is all the separation a flat panel needs.
             .background(Capsule().fill(skeu.recess))
+            .contentShape(Capsule())
+            .offset(undoDragOffset)
+            .simultaneousGesture(undoDismissGesture)
+            .accessibilityAction(named: "Dismiss") {
+                withAnimation(reduceMotion ? SkeuMotion.tint : SkeuMotion.layout) {
+                    store.dismissLastAction()
+                }
+            }
             .padding(.horizontal, F.margin)
             .padding(.bottom, SkeuSpace.sm)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .transition(reduceMotion ? .opacity : .asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: undoDismissalEdge).combined(with: .opacity)
+            ))
             // Retires itself; any further mutation restarts the clock.
             .task(id: store.revision) {
+                undoDragOffset = .zero
+                undoDismissalEdge = .bottom
                 try? await Task.sleep(for: .seconds(4))
                 if !Task.isCancelled {
                     withAnimation(SkeuMotion.layout) { store.dismissLastAction() }
                 }
             }
         }
+    }
+
+    private var undoDismissGesture: some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .global)
+            .onChanged { value in
+                // Track the finger directly; upward drags stay at the bottom.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    undoDragOffset = CGSize(width: value.translation.width,
+                                            height: max(0, value.translation.height))
+                    undoDismissalEdge = abs(value.translation.width) > abs(value.translation.height)
+                        ? (value.translation.width < 0 ? .leading : .trailing) : .bottom
+                }
+            }
+            .onEnded { value in
+                let horizontal = abs(value.translation.width) > abs(value.translation.height)
+                let distance = horizontal ? abs(value.translation.width) : value.translation.height
+                let projected = horizontal
+                    ? value.predictedEndTranslation.width * (value.translation.width < 0 ? -1 : 1)
+                    : value.predictedEndTranslation.height
+                let shouldDismiss = distance >= (horizontal ? 64 : 40)
+                    || (distance >= 12 && projected >= (horizontal ? 120 : 80))
+                withAnimation(reduceMotion ? SkeuMotion.tint : SkeuMotion.layout) {
+                    if shouldDismiss {
+                        store.dismissLastAction()
+                    } else {
+                        undoDragOffset = .zero
+                        undoDismissalEdge = .bottom
+                    }
+                }
+            }
     }
 
     // MARK: Tab bar — node 2:639
@@ -960,8 +1272,10 @@ extension SkeuRootView {
 
     /// A square of the same channel, holding the mark and no word. A label
     /// would say what the icon already says, and there is no room for both.
-    private var liveTab: some View {
-        let height = SkeuToggle.height * chromeScale
+    private var liveTab: some View { liveControl() }
+
+    private func liveControl(controlHeight: CGFloat? = nil, togglesBoard: Bool = false) -> some View {
+        let height = controlHeight ?? SkeuToggle.height * chromeScale
         let pill = height - SkeuToggle.padV * chromeScale * 2
 
         // The SWELL rides the MARK, and the channel it sits in holds still
@@ -988,9 +1302,11 @@ extension SkeuRootView {
             // The gesture stays on the OUTSIDE so the whole channel remains
             // the target; only what it scales has moved inward.
             .contentShape(Rectangle())
-            .onTapGesture { pressLive() }
+            .onTapGesture {
+                if togglesBoard && showLive { select(bucket) } else { pressLive() }
+            }
             .accessibilityAddTraits(showLive ? [.isButton, .isSelected] : .isButton)
-            .accessibilityLabel("Live")
+            .accessibilityLabel(togglesBoard && showLive ? "Back to task board" : "Live")
     }
 
     /// Split out because the whole button in one expression put the type
@@ -1080,9 +1396,10 @@ extension SkeuRootView {
     /// already says where one section ends and the next begins, and two
     /// devices for one boundary is one too many (founder direction
     /// 2026-08-17).
-    private func sectionHeading(_ title: String, day: Date?) -> some View {
+    private func sectionHeading(_ title: String, day: Date?, column: Bool = false) -> some View {
         let collapsed = settings.isCollapsed(day)
-        let shape = RoundedRectangle(cornerRadius: SkeuRadius.md, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: column ? SkeuRadius.sm : SkeuRadius.md,
+                                     style: .continuous)
 
         // Set ABOVE the task text, not below it. A heading that names a run of
         // tasks has to outrank them, and this was an eyebrow in `inkFaint` —
@@ -1090,26 +1407,29 @@ extension SkeuRootView {
         // to harder to read than the task (founder direction 2026-08-17).
         return HStack(spacing: SkeuSpace.sm) {
             Text(title)
-                .font(SkeuFont.at(labelSize * 1.32, weight: .semibold))
+                .font(SkeuFont.at(labelSize * (column ? 1 : 1.32),
+                                  weight: column ? .medium : .semibold))
                 .foregroundStyle(skeu.ink)
 
             Spacer(minLength: 0)
 
             Image(systemName: "chevron.right")
-                .font(SkeuFont.at(labelSize, weight: .semibold))
+                .font(SkeuFont.at(labelSize * (column ? 0.8 : 1), weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(skeu.inkMuted)
                 .rotationEffect(.degrees(collapsed ? 0 : 90))
                 .animation(SkeuMotion.layout, value: collapsed)
         }
-        .padding(.horizontal, SkeuSpace.md)
-        .padding(.vertical, SkeuSpace.sm)
-        .frame(minHeight: SkeuControl.minTouch)
+        .padding(.horizontal, column ? SkeuSpace.sm : SkeuSpace.md)
+        .padding(.vertical, column ? SkeuSpace.xs : SkeuSpace.sm)
+        .frame(minHeight: column ? 32 * chromeScale : SkeuControl.minTouch)
         // A band, so a heading is not just larger text but a different KIND of
         // thing from the rows under it (founder direction 2026-08-17). A TINT,
         // not a surface: the accent at low strength, the same device the
         // selected segment uses. A lit slat here would read as a pill.
         .background { shape.fill(skeu.accent.opacity(0.12)) }
+        // Compact paint, with the same full-size touch target around it.
+        .frame(minHeight: SkeuControl.minTouch)
         .contentShape(shape)
         .skeuPress {
             withAnimation(SkeuMotion.layout) { settings.toggleCollapsed(day) }
@@ -1117,8 +1437,14 @@ extension SkeuRootView {
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("\(title), \(collapsed ? "collapsed" : "expanded")")
         .padding(.horizontal, SkeuSpace.xs)
-        .padding(.top, SkeuSpace.xl)
+        .padding(.top, column ? SkeuSpace.xs : SkeuSpace.xl)
         .padding(.bottom, SkeuSpace.xs)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            if column { transfer.recordBoardHeader(frame, section: .init(bucket: .general, day: day)) }
+        }
+        .onDisappear {
+            if column { transfer.forgetBoardHeader(.init(bucket: .general, day: day)) }
+        }
     }
 
     /// One scheduled day's name.
@@ -1195,27 +1521,147 @@ extension SkeuRootView {
 
 // MARK: - Workspace switcher
 
-/// The workspace switcher: a title, a ▼ and a short menu, in this look's own
-/// vocabulary rather than as a floating panel — the CURRENT workspace stays
-/// living in the glass pill, and tapping
-/// it or the chevron grows that same pill straight down into a short list of
-/// the others (founder direction 2026-08-14). Nothing detaches from the
-/// control; the pill itself is the menu.
-///
-/// A separate STRUCT, not a helper property on SkeuRootView, and that is
-/// load-bearing — the same lesson SkeuTaskRow records. The open/closed flag
-/// used to be `@State` on the ROOT, so every toggle invalidated the root's
-/// whole body: `store.tasks(in:)` re-ran (a fetch, a sort, three filters),
-/// `store.workspaces()` re-ran (a fetch, a dedup, a sort), and every task row
-/// was rebuilt — all to expand one pill. That is what made opening the menu
-/// crawl (founder bug report 2026-08-14). Owning the flag here keeps the
-/// invalidation inside this small subtree.
+/// Safe-area insets can be symmetric in landscape. Observe the hosting
+/// window's orientation, including rotations between landscape sides.
+private struct WorkspaceOrientationReader: UIViewControllerRepresentable {
+    @Binding var orientation: UIInterfaceOrientation
+
+    func makeUIViewController(context: Context) -> Controller {
+        let controller = Controller()
+        controller.report = { orientation = $0 }
+        return controller
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.report = { orientation = $0 }
+    }
+
+    final class Controller: UIViewController {
+        var report: ((UIInterfaceOrientation) -> Void)?
+        private var lastOrientation: UIInterfaceOrientation = .unknown
+        private var orientationUpdate: Task<Void, Never>?
+
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            NotificationCenter.default.addObserver(self, selector: #selector(rotationChanged),
+                name: UIDevice.orientationDidChangeNotification, object: nil)
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            reportOrientation()
+        }
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+        }
+
+        override func viewDidDisappear(_ animated: Bool) {
+            super.viewDidDisappear(animated)
+            UIDevice.current.endGeneratingDeviceOrientationNotifications()
+            orientationUpdate?.cancel()
+        }
+
+        @objc private func rotationChanged() {
+            // A half-turn keeps the same view size, so layout/size callbacks
+            // alone can miss it on a physical phone. Read the resolved scene
+            // geometry after the rotation, rather than the raw sensor value.
+            orientationUpdate?.cancel()
+            orientationUpdate = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: .milliseconds(400)) }
+                catch { return }
+                self?.reportOrientation()
+            }
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            reportOrientation()
+        }
+
+        override func viewWillTransition(to size: CGSize,
+                                         with coordinator: UIViewControllerTransitionCoordinator) {
+            super.viewWillTransition(to: size, with: coordinator)
+            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                self?.reportOrientation()
+            }
+        }
+
+        private func reportOrientation() {
+            guard let orientation = view.window?.windowScene?.effectiveGeometry.interfaceOrientation,
+                  orientation != .unknown, orientation != lastOrientation else { return }
+            lastOrientation = orientation
+            DispatchQueue.main.async { [weak self] in self?.report?(orientation) }
+        }
+    }
+}
+
+/// Derive every part of the morph from one interpolated value. The fixed
+/// outer frame prevents SwiftUI's overlay alignment from jumping to the
+/// closed layout while the visible panel is still wide.
+/// SwiftUI interpolates frame dimensions itself. Only the transform runs per
+/// frame, so the glass/material/scroll-content tree is not rebuilt at 120 Hz.
+struct WorkspaceMenuMorph: ViewModifier {
+    @Environment(\.skeu) private var skeu
+    var progress: CGFloat
+    var controlSize: CGFloat
+    var openSize: CGSize
+    var trailingInset: CGFloat
+    var reduceMotion: Bool
+
+    func body(content: Content) -> some View {
+        #if DEBUG
+        let _ = WorkspaceMenuPerformance.recordBuild()
+        #endif
+        let p = min(1, max(0, progress))
+        let shape = RoundedRectangle(cornerRadius: controlSize / 2, style: .continuous)
+        content
+            .frame(width: controlSize + (openSize.width - controlSize) * p,
+                   height: controlSize + (openSize.height - controlSize) * p, alignment: .topTrailing)
+            .clipShape(shape)
+            .skeuGlass(shape, height: controlSize, rasterized: false)
+            .background(shape.fill(skeu.canvas))
+            .modifier(WorkspaceMenuPose(progress: p, trailingInset: trailingInset, reduceMotion: reduceMotion))
+            .frame(width: controlSize, height: controlSize, alignment: .topTrailing)
+    }
+}
+
+#if DEBUG
+@MainActor enum WorkspaceMenuPerformance {
+    static var bodyBuilds = 0
+    static func recordBuild() { bodyBuilds += 1 }
+}
+#endif
+
+struct WorkspaceMenuPose: GeometryEffect {
+    var progress: CGFloat
+    var trailingInset: CGFloat
+    var reduceMotion: Bool
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let p = min(1, max(0, progress))
+        // Translation is separate from the phone's standard press spring.
+        return ProjectionTransform(CGAffineTransform(translationX: -trailingInset * p, y: 0))
+    }
+}
+
+/// The glass pill itself expands into the workspace list. Keep its open
+/// state here so toggling it does not rebuild the task board.
 private struct SkeuWorkspacePill: View {
+    var compact = false
+    var controlSize: CGFloat = SkeuControl.minTouch
+    var menuMaxHeight: CGFloat = 280
+    var menuTrailingInset: CGFloat = 0
     @Environment(\.skeu) private var skeu
     @Environment(AppSettings.self) private var settings
     @Environment(TaskStore.self) private var store
     @Environment(\.skeuTextScale) private var textScale
     @Environment(\.skeuChromeScale) private var chromeScale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isOpen = false
     /// The swell, held HERE rather than by `.skeuPress`.
@@ -1228,6 +1674,95 @@ private struct SkeuWorkspacePill: View {
     @State private var swollen = false
 
     var body: some View {
+        if compact {
+            compactControl
+        } else {
+            expandedPill
+                .fixedSize(horizontal: true, vertical: true)
+                .frame(height: (F.topHeight - F.glassPadV * 2) * F.topControlScale * chromeScale,
+                       alignment: .top)
+        }
+    }
+
+    private var compactControl: some View {
+        let workspaces = store.workspaces()
+        let current = workspaces.first { $0.id == settings.currentWorkspaceID }
+        let others = workspaces.filter { $0.id != settings.currentWorkspaceID }
+        let width = max(controlSize, 200 * min(textScale, 1.3))
+        let height = max(controlSize, min(CGFloat(others.count + 1) * controlSize, menuMaxHeight))
+        let label = F.label * F.topControlScale * textScale
+
+        // Hold the rail's layout still. One glass surface expands left and
+        // down from the icon, rather than replacing it with a detached card.
+        return Color.clear
+            .frame(width: controlSize, height: controlSize)
+            .overlay(alignment: .topTrailing) {
+                ZStack(alignment: .topTrailing) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: SkeuSpace.sm) {
+                            Text(current?.name ?? "")
+                                .font(SkeuFont.at(label, role: .chrome))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: label * 0.7, weight: .medium))
+                        }
+                        .foregroundStyle(skeu.ink)
+                        .frame(height: controlSize)
+                        .contentShape(Rectangle())
+                        .onTapGesture { toggleCompactMenu() }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel("Workspace: \(current?.name ?? "")")
+                        .accessibilityHint("Closes the workspace list")
+
+                        ScrollView {
+                            workspaceRows(others, label: label, rowHeight: controlSize)
+                        }
+                        .frame(height: max(0, height - controlSize))
+                        .scrollBounceBehavior(.basedOnSize)
+                        .scrollIndicators(.hidden)
+                    }
+                    .padding(.horizontal, F.glassPadH * F.topControlScale)
+                    .frame(width: width, height: height, alignment: .top)
+                    .opacity(isOpen ? 1 : 0)
+                    .allowsHitTesting(isOpen)
+                    .accessibilityHidden(!isOpen)
+
+                    Image(systemName: "square.stack")
+                        .font(.system(size: SkeuTopBar.icon * controlSize / SkeuTopBar.control,
+                                      weight: .medium))
+                        .foregroundStyle(skeu.ink)
+                        .frame(width: controlSize, height: controlSize)
+                        .contentShape(Circle())
+                        .onTapGesture { toggleCompactMenu() }
+                        .opacity(isOpen ? 0 : 1)
+                        .allowsHitTesting(!isOpen)
+                        .accessibilityHidden(isOpen)
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel("Workspace: \(current?.name ?? "")")
+                        .accessibilityHint("Opens the workspace list")
+                }
+                .modifier(WorkspaceMenuMorph(progress: isOpen ? 1 : 0,
+                    controlSize: controlSize, openSize: CGSize(width: width, height: height),
+                    trailingInset: menuTrailingInset, reduceMotion: reduceMotion))
+                .animation(compactMenuAnimation, value: isOpen)
+                .scaleEffect(reduceMotion ? 1 : (swollen ? SkeuMotion.pressGrow : 1), anchor: .topTrailing)
+                .animation(reduceMotion ? nil : SkeuMotion.pressSwell, value: swollen)
+            }
+    }
+
+    private var compactMenuAnimation: Animation {
+        reduceMotion ? SkeuMotion.tint : SkeuMotion.layout
+    }
+
+    private func toggleCompactMenu() {
+        swell()
+        SkeuHaptic.selection()
+        withAnimation(compactMenuAnimation) { isOpen.toggle() }
+    }
+
+    private var expandedPill: some View {
         let workspaces = store.workspaces()
         let current = workspaces.first { $0.id == settings.currentWorkspaceID }
         let others = workspaces.filter { $0.id != settings.currentWorkspaceID }
@@ -1236,7 +1771,7 @@ private struct SkeuWorkspacePill: View {
         // unchanged text. Dynamic Type layers on top of that.
         let scale = F.topControlScale
         let label = F.label * scale * textScale
-        let rowHeight = (F.topHeight - F.glassPadV * 2) * scale * chromeScale
+        let rowHeight = compact ? controlSize : (F.topHeight - F.glassPadV * 2) * scale * chromeScale
 
         return VStack(alignment: .leading, spacing: 0) {
             // No Button: it would take the touch before the press could see
@@ -1258,7 +1793,7 @@ private struct SkeuWorkspacePill: View {
                         // the gear off the edge with it (founder bug report
                         // 2026-08-17). Names are bounded now, but the bar
                         // should not depend on that to stay on screen.
-                        .frame(maxWidth: 200 * scale)
+                        .frame(maxWidth: 200 * scale, alignment: compact ? .leading : .center)
 
                     // Two strokes, nothing else — no circle, no glass of its
                     // own. It rides inside the pill it controls.
@@ -1284,7 +1819,7 @@ private struct SkeuWorkspacePill: View {
                 // Nothing to choose from: no chevron turn, no list. The pill
                 // still swells — it reads as a control that is simply already
                 // where it can be (founder direction 2026-08-17).
-                guard !others.isEmpty else { return }
+                guard compact || !others.isEmpty else { return }
                 withAnimation(SkeuMotion.layout) { isOpen.toggle() }
             }
             .accessibilityAddTraits(.isButton)
@@ -1292,39 +1827,58 @@ private struct SkeuWorkspacePill: View {
             .accessibilityHint("Opens the workspace list")
 
             if isOpen {
-                ForEach(others, id: \.id) { workspace in
-                    Text(workspace.name)
-                        .font(SkeuFont.at(label, role: .chrome))
-                        .tracking(-0.02 * label)
-                        .foregroundStyle(skeu.inkMuted)
-                        .lineLimit(1)
-                        // Full pill width, not `.fixedSize()` — the row has to
-                        // be tappable across the whole pill, not just where
-                        // the glyphs happen to fall.
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: rowHeight)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            SkeuHaptic.selection()
-                            withAnimation(SkeuMotion.layout) {
-                                settings.currentWorkspaceID = workspace.id
-                                isOpen = false
-                            }
-                        }
-                        .accessibilityAddTraits(.isButton)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                if compact {
+                    ScrollView {
+                        workspaceRows(others, label: label, rowHeight: rowHeight)
+                    }
+                    .frame(height: min(CGFloat(others.count) * rowHeight,
+                                       max(rowHeight, menuMaxHeight - rowHeight)))
+                    .scrollBounceBehavior(.basedOnSize)
+                } else {
+                    workspaceRows(others, label: label, rowHeight: rowHeight)
                 }
             }
         }
         .padding(.horizontal, F.glassPadH * scale)
+        .frame(width: compact ? 200 * min(textScale, 1.3) : nil, alignment: .leading)
         .frame(minWidth: SkeuControl.minTouch * 1.6, alignment: .leading)
         .fixedSize(horizontal: true, vertical: false)
         .skeuGlass(RoundedRectangle(cornerRadius: rowHeight / 2, style: .continuous),
-                   height: rowHeight)
+                   height: rowHeight, frosted: compact)
+        // Same layer order as Mac: solid canvas underneath the unchanged lens.
+        .background(RoundedRectangle(cornerRadius: rowHeight / 2, style: .continuous).fill(skeu.canvas))
         // The whole pill, glass and all — the app's press, applied where the
         // object actually is. Same numbers as `.skeuPress`.
         .scaleEffect(swollen ? SkeuMotion.pressGrow : 1)
         .animation(SkeuMotion.pressSwell, value: swollen)
+    }
+
+    private func workspaceRows(_ workspaces: [Workspace], label: CGFloat,
+                               rowHeight: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+        ForEach(workspaces, id: \.id) { workspace in
+            Text(workspace.name)
+                .font(SkeuFont.at(label, role: .chrome))
+                .tracking(-0.02 * label)
+                .foregroundStyle(skeu.inkMuted)
+                .lineLimit(1)
+                // Full pill width, not `.fixedSize()` — the row has to
+                // be tappable across the whole pill, not just where
+                // the glyphs happen to fall.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: rowHeight)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    SkeuHaptic.selection()
+                    withAnimation(compact ? compactMenuAnimation : SkeuMotion.layout) {
+                        settings.currentWorkspaceID = workspace.id
+                        isOpen = false
+                    }
+                }
+                .accessibilityAddTraits(.isButton)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+        }
     }
 
     private func swell() {
@@ -1558,7 +2112,7 @@ struct SkeuSwipeSequenceDemo: View {
         HStack(alignment: .top, spacing: F.glassGap) {
             Circle().fill(.clear)
                 .frame(width: checkSize, height: checkSize)
-                .skeuGlass(Circle(), height: checkSize, prominent: false)
+                .overlay { Circle().strokeBorder(skeu.ink, lineWidth: labelSize * 0.065) }
                 .frame(width: SkeuControl.minTouch, height: SkeuControl.minTouch)
                 .frame(height: rowH)
 
@@ -1670,6 +2224,7 @@ private struct ChevronGlyph: Shape {
 /// pixel-grid snapping of the drag (the skeu look has no pixel grid), and the
 /// press reads as the skeu scale-down rather than a tint.
 private struct SkeuTaskRow: View {
+    @Environment(\.skeuTaskColumn) private var column
     /// The tick follows the typeface (see SkeuChromeGlyph), so the row has to
     /// observe it.
     @Environment(AppSettings.self) private var settings
@@ -1678,6 +2233,7 @@ private struct SkeuTaskRow: View {
     @Environment(MenuCoordinator.self) private var menu
     @Environment(EditingCoordinator.self) private var editing
     @Environment(ReorderCoordinator.self) private var reorder
+    @Environment(TaskTransferCoordinator.self) private var transfer
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.skeuTextScale) private var textScale
     @Environment(\.skeuChromeScale) private var chromeScale
@@ -1696,6 +2252,8 @@ private struct SkeuTaskRow: View {
     /// the carried row leaves the stack entirely for the length of the drag,
     /// which is also how UIKit has always done it.
     var carried = false
+    var listBucket: Bucket? = nil
+    var listDay: Date? = nil
 
     // Dynamic Type (FR-015): text on the full curve, chrome at half — see
     // SkeuTypeScale for why the two differ.
@@ -1768,8 +2326,11 @@ private struct SkeuTaskRow: View {
     /// list on 2026-08-23 for the same reason, and for one of its own — see
     /// the ground below.
     private var isMarked: Bool {
-        isPressing || dragOffset != 0 || isEditing
-            || menu.request?.taskID == task.id || reorder.isDragging(task.id)
+        let settling = (reorder.isDragging(task.id) && reorder.isSettling)
+            || (transfer.isBoardDrag && transfer.taskID == task.id && !transfer.isLifted)
+        return (!settling && (carried || reorder.isDragging(task.id)))
+            || isPressing || dragOffset != 0 || isEditing
+            || menu.request?.taskID == task.id
     }
 
     var body: some View {
@@ -1796,7 +2357,11 @@ private struct SkeuTaskRow: View {
                 RoundedRectangle(cornerRadius: SkeuRadius.md, style: .continuous)
                     .fill(skeu.isDark ? skeu.materialTop : skeu.recess)
                     .opacity(isMarked ? (skeu.isDark ? 0.55 : 0.35) : 0)
-                    .animation(SkeuMotion.tint, value: isMarked)
+                    // Fade on release, before the floating copy is replaced
+                    // by the real row in the animation-free model handoff.
+                    .animation((reorder.isSettling || (transfer.isBoardDrag && !transfer.isLifted)) && !reduceMotion
+                               ? .easeOut(duration: 0.24) : SkeuMotion.tint,
+                               value: isMarked)
                     .allowsHitTesting(false)
             }
             // OPAQUE, and only while the row is being carried.
@@ -1810,7 +2375,7 @@ private struct SkeuTaskRow: View {
             .background {
                 RoundedRectangle(cornerRadius: SkeuRadius.md, style: .continuous)
                     .fill(skeu.canvas)
-                    .opacity(reorder.isDragging(task.id) ? 1 : 0)
+                    .opacity(carried || reorder.isDragging(task.id) ? 1 : 0)
                     .animation(ReorderCoordinator.lift, value: reorder.isDragging(task.id))
                     .allowsHitTesting(false)
             }
@@ -1831,20 +2396,38 @@ private struct SkeuTaskRow: View {
             // checkbox's own tap gesture wins its touches and everything else
             // lands in the state machine.
             .background(RowGestureView(handlers: handlers))
+            .opacity(!carried && transfer.taskID == task.id ? 0 : 1)
+            .animation(nil, value: transfer.taskID)
+            .allowsHitTesting(carried || transfer.taskID == nil || transfer.taskID == task.id)
             .background {
                 GeometryReader { proxy in
                     Color.clear
                         .onAppear { rowWidth = proxy.size.width }
                         .onChange(of: proxy.frame(in: .global)) { _, frame in
                             frames.rect = frame
+                            rowWidth = frame.width
+                            if let listBucket, !carried {
+                                transfer.report(frame, taskID: task.id, in: listBucket, day: listDay)
+                            }
                             // What a row is worth in height is what the rows
                             // behind it close up by — see ReorderCoordinator.
                             reorder.heights.record(frame.height, for: task.id)
                         }
                         .task {
                             frames.rect = proxy.frame(in: .global)
+                            if let listBucket, !carried {
+                                transfer.report(frames.rect, taskID: task.id, in: listBucket, day: listDay)
+                            }
                             reorder.heights.record(proxy.size.height, for: task.id)
                         }
+                }
+            }
+            .onChange(of: store.revision) { _, _ in
+                guard !carried, transfer.isBoardDrag, transfer.taskID == task.id,
+                      let listBucket else { return }
+                Task { @MainActor in
+                    await Task.yield()
+                    transfer.report(frames.rect, taskID: task.id, in: listBucket, day: listDay)
                 }
             }
             .onAppear {
@@ -1982,12 +2565,17 @@ private struct SkeuTaskRow: View {
     @ViewBuilder
     private var accessibilityMoveActions: some View {
         Button(task.isCompleted ? "Uncomplete" : "Complete") { store.toggleCompleted(task) }
+        ForEach(store.workspaces().filter { $0.taskStampID != task.workspaceID }, id: \.id) { workspace in
+            Button("Move to workspace \(workspace.name)") {
+                store.move(task, toWorkspace: workspace)
+            }
+        }
         if !task.isCompleted {
             if currentBucket.steppedOnce(.deferOne) != nil {
-                Button("Defer one step") { _ = store.step(task, direction: .deferOne) }
+                Button("Defer one step") { moveOneStep(.deferOne) }
             }
             if currentBucket.steppedOnce(.pullOne) != nil {
-                Button("Pull forward one step") { _ = store.step(task, direction: .pullOne) }
+                Button("Pull forward one step") { moveOneStep(.pullOne) }
             }
             ForEach(currentBucket.menuDestinations, id: \.label) { destination in
                 Button("Move to \(destination.bucket.displayName)") {
@@ -2129,12 +2717,34 @@ private struct SkeuTaskRow: View {
         // The screen cannot be moved by dragging on it.
         DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { value in
+                if column {
+                    guard !reorder.isDragging, transfer.liftBoard(task, from: frames.rect) else { return }
+                    transfer.trackBoard(value.translation, at: value.location)
+                    return
+                }
                 if !reorder.isDragging(task.id) {
                     reorder.begin(task, in: siblings.map(\.id), frame: frames.rect)
                 }
                 reorder.update(value.translation.height)
             }
-            .onEnded { _ in
+            .onEnded { value in
+                if column {
+                    guard transfer.isBoardDrag, transfer.taskID == task.id else { return }
+                    guard let drop = transfer.boardDrop else { transfer.returnHome(); return }
+                    SkeuHaptic.press()
+                    withAnimation(reduceMotion ? SkeuMotion.tint : .easeOut(duration: 0.24)) {
+                        transfer.prepareBoard(velocity: value.velocity)
+                    }
+                    withAnimation(reduceMotion ? nil : TaskTransferCoordinator.listShift) {
+                        if drop.section.bucket == .general, settings.isCollapsed(drop.section.day) {
+                            settings.toggleCollapsed(drop.section.day)
+                        }
+                        store.placeOnBoard(task, in: drop.section.bucket,
+                                           day: drop.section.day, before: drop.before)
+                    }
+                    return
+                }
+                let session = reorder.sessionID
                 let move = reorder.destination()
                 let byID = Dictionary(siblings.map { ($0.id, $0) },
                                       uniquingKeysWith: { first, _ in first })
@@ -2143,16 +2753,25 @@ private struct SkeuTaskRow: View {
                 // the copy in one breath would show the row twice for a frame
                 // — once floating, once landed.
                 SkeuHaptic.press()
-                withAnimation(ReorderCoordinator.drop) { reorder.flyHome() }
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(ReorderCoordinator.flightTime))
-                    if let move, let moved = byID[move.moved] {
-                        store.reorder(moved,
-                                      between: move.above.flatMap { byID[$0] },
-                                      and: move.below.flatMap { byID[$0] },
-                                      visible: siblings)
+                withAnimation(reduceMotion ? nil : ReorderCoordinator.drop,
+                              completionCriteria: .removed) {
+                    reorder.flyHome()
+                } completion: {
+                    guard reorder.sessionID == session else { return }
+                    // Model positions replace the temporary offsets together.
+                    // No implicit offset/opacity spring may run during this
+                    // handoff, or the rows briefly move back a second time.
+                    var transaction = Transaction(animation: nil)
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        if let move, let moved = byID[move.moved] {
+                            store.reorder(moved,
+                                          between: move.above.flatMap { byID[$0] },
+                                          and: move.below.flatMap { byID[$0] },
+                                          visible: siblings)
+                        }
+                        reorder.end()
                     }
-                    reorder.end()
                 }
             }
     }
@@ -2252,17 +2871,28 @@ private struct SkeuTaskRow: View {
     }
 
     private func swipeChanged(_ dx: CGFloat) {
-        guard !task.isCompleted else { return }
+        guard !task.isCompleted,
+              transfer.taskID == nil || transfer.taskID == task.id else { return }
         let direction: StepDirection = dx < 0 ? .pullOne : .deferOne
         if isDeadEnd(direction) {
             // Dead end: rubber-band + one light haptic.
-            dragOffset = dx * Self.rubberResistance
+            if transfer.taskID == task.id {
+                transfer.track(dx * Self.rubberResistance)
+            } else {
+                dragOffset = dx * Self.rubberResistance
+            }
             if abs(dx) > 20, !rubberBandBuzzed {
                 rubberBandBuzzed = true
                 SkeuHaptic.press()
             }
         } else {
-            dragOffset = dx
+            if column && !reduceMotion && !reorder.isDragging,
+               transfer.lift(task, from: frames.rect) {
+                transfer.track(dx)
+                dragOffset = 0
+            } else {
+                dragOffset = dx
+            }
             // Passing the bar is the moment worth feeling — after this,
             // letting go commits. Fires once per crossing, not per frame.
             //
@@ -2281,7 +2911,8 @@ private struct SkeuTaskRow: View {
     private func swipeEnded(_ dx: CGFloat, velocity: CGFloat, startX: CGFloat) {
         rubberBandBuzzed = false
         passedThreshold = false
-        guard !task.isCompleted else { return }
+        guard !task.isCompleted,
+              transfer.taskID == nil || transfer.taskID == task.id else { return }
 
         let direction: StepDirection = dx < 0 ? .pullOne : .deferOne
         let runway = dx > 0 ? max(1, rowWidth - startX) : max(1, startX)
@@ -2290,7 +2921,30 @@ private struct SkeuTaskRow: View {
         let sameSign = (dx < 0) == (velocity < 0) || abs(velocity) < 50
 
         guard !isDeadEnd(direction), overThreshold, sameSign else {
+            if transfer.taskID == task.id { transfer.returnHome() }
             withAnimation(.spring(duration: 0.3)) { dragOffset = 0 }
+            return
+        }
+
+        if direction == .pullOne, pullGoesLive {
+            SkeuHaptic.press()
+            if transfer.taskID == task.id { transfer.reset() }
+            withAnimation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.80)) {
+                dragOffset = 0
+                menu.goLive(task, store: store)
+            }
+            return
+        }
+
+        if column && !reduceMotion {
+            if currentBucket.steppedOnce(direction) != nil {
+                moveOneStep(direction, velocity: velocity)
+            } else {
+                // Live is a separate screen, not a fourth board column.
+                transfer.reset()
+                dragOffset = 0
+                menu.goLive(task, store: store)
+            }
             return
         }
 
@@ -2316,8 +2970,29 @@ private struct SkeuTaskRow: View {
         }
     }
 
+    /// Finger and VoiceOver moves share the same travelling row. The model
+    /// moves once; its hidden destination supplies the actual landing frame.
+    private func moveOneStep(_ direction: StepDirection, velocity: CGFloat = 0) {
+        guard let destination = currentBucket.steppedOnce(direction) else { return }
+        guard column, !reduceMotion else {
+            _ = store.step(task, direction: direction)
+            return
+        }
+        guard transfer.lift(task, from: frames.rect) else { return }
+        SkeuHaptic.press()
+        dragOffset = 0
+        transfer.prepare(for: destination, velocity: velocity)
+        withAnimation(TaskTransferCoordinator.listShift) {
+            if destination == .general, settings.isCollapsed(nil) {
+                settings.toggleCollapsed(nil)
+            }
+            _ = store.step(task, direction: direction)
+        }
+    }
+
     private func swipeCancelled() {
         rubberBandBuzzed = false
+        if transfer.taskID == task.id { transfer.returnHome() }
         guard dragOffset != 0 else { return }
         withAnimation(.spring(duration: 0.3)) { dragOffset = 0 }
     }
@@ -2325,10 +3000,27 @@ private struct SkeuTaskRow: View {
     private var row: some View {
         VStack(alignment: .leading, spacing: 0) {
             mainLine
+            if column && !isEditing {
+                // Dates get their own line in narrow columns, leaving the
+                // title enough width to wrap by words rather than letters.
+                dayChip
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, SkeuControl.minTouch + F.glassGap)
+            }
+            if column && isEditing {
+                HStack(spacing: F.glassGap) {
+                    Spacer(minLength: 0)
+                    editControls
+                }
+                .padding(.trailing, max(0, F.padTrail - F.edgeNudge))
+            }
             if !task.allPhotos.isEmpty {
                 photoStrip
             }
         }
+        // Reserve this in every state so picking up a row never changes its
+        // measured height. Wrapped titles also keep air above the marked edge.
+        .padding(.bottom, SkeuSpace.sm * chromeScale)
     }
 
     private var mainLine: some View {
@@ -2346,11 +3038,14 @@ private struct SkeuTaskRow: View {
                     // a vector one beside bitmap text is the mismatch Blend
                     // exists to avoid. See SkeuChromeGlyph.
                     SkeuChromeGlyph(kind: .check, face: settings.skeuFace,
-                                    size: 11, tint: skeu.ink)
+                                    size: 11 * 0.75, tint: task.isCompleted ? skeu.inkMuted : (task.isImportant ? skeu.critical : skeu.ink))
                 }
             }
             .frame(width: checkSize, height: checkSize)
-            .skeuGlass(Circle(), height: checkSize, prominent: task.isCompleted)
+            .overlay {
+                Circle().strokeBorder(task.isCompleted ? skeu.inkMuted : (task.isImportant ? skeu.critical : skeu.ink),
+                    lineWidth: labelSize * (task.isImportant && !task.isCompleted ? 0.08 : 0.065))
+            }
             // §3.3 minimum target: the gesture owns the full 44pt square.
             .frame(width: SkeuControl.minTouch, height: SkeuControl.minTouch)
             .contentShape(Rectangle())
@@ -2419,41 +3114,18 @@ private struct SkeuTaskRow: View {
             // 2026-08-17) — a second way in from every row made "the one
             // thing right now" something you could set by brushing past it.
 
-            // Trailing column: the camera while editing, otherwise the overdue
-            // chip. Pinned to the first line's band however tall the row grows.
-            if isEditing && !addedPhotoThisEdit {
-                // One photo per session.
-                // Bare glyph, no glass circle — see the add row's camera.
-                Image(systemName: "camera")
-                    .font(SkeuFont.at(glyphSize, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(skeu.ink)
-                    .frame(width: glyphBox, height: glyphBox)
-                    .frame(width: SkeuControl.minTouch, height: rowH)
-                    .contentShape(Rectangle())
-                    .onTapGesture { chooseSource() }
-                    .accessibilityLabel("Add photo")
-            }
-
-            // The calendar, only in Soon and only while editing (founder
-            // direction 2026-08-17). Scheduling is what this tab is for; in
-            // Today and Tomorrow the tab already IS the date.
-            // Asked of the TASK, not the screen: a row does not know which
-            // tab is showing, and its date already answers the question.
-            if isEditing, task.bucket(now: store.now(), calendar: store.calendar) == .general {
-                Image(systemName: "calendar")
-                    .font(SkeuFont.at(glyphSize, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(skeu.ink)
-                    .frame(width: glyphBox, height: glyphBox)
-                    .frame(width: SkeuControl.minTouch, height: rowH)
-                    .contentShape(Rectangle())
-                    .onTapGesture { SkeuHaptic.press(); showDayPicker = true }
-                    .accessibilityLabel("Schedule")
-            }
+            if !column { editControls }
 
             if !isEditing {
-                dayChip
+                if !column { dayChip }
+                if task.isLiveNote && !task.isCompleted {
+                    LiveGlyph(tint: task.isImportant ? skeu.critical : skeu.ink, lineWidth: 1.7 * chromeScale)
+                        .frame(width: glyphSize, height: glyphSize)
+                        .skeuPulse(task.isPinned)
+                        .frame(height: rowH)
+                        .allowsHitTesting(false)
+                        .accessibilityLabel(task.isPinned ? "Live task" : "Live task, off air")
+                }
                 grip
             }
         }
@@ -2462,6 +3134,43 @@ private struct SkeuTaskRow: View {
         .padding(.leading, max(0, SkeuSpace.xs - F.edgeNudge))
         .padding(.trailing, max(0, F.padTrail - F.edgeNudge))
         .frame(minHeight: rowH)
+    }
+
+    @ViewBuilder
+    private var editControls: some View {
+        // Trailing column: the camera while editing, otherwise the overdue
+        // chip. Pinned to the first line's band however tall the row grows.
+        if isEditing && !addedPhotoThisEdit {
+            // One photo per session.
+            // Bare glyph, no glass circle — see the add row's camera.
+            Image(systemName: "camera")
+                .font(SkeuFont.at(glyphSize, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(skeu.ink)
+                .frame(width: glyphBox, height: glyphBox)
+                .frame(width: SkeuControl.minTouch, height: rowH)
+                .contentShape(Rectangle())
+                .onTapGesture { chooseSource() }
+                .accessibilityLabel("Add photo")
+        }
+
+        // The calendar, only in Soon and only while editing (founder
+        // direction 2026-08-17). Scheduling is what this tab is for; in
+        // Today and Tomorrow the tab already IS the date.
+        // Asked of the TASK, not the screen: a row does not know which
+        // tab is showing, and its date already answers the question.
+        if isEditing, task.bucket(now: store.now(), calendar: store.calendar) == .general {
+            Image(systemName: "calendar")
+                .font(SkeuFont.at(glyphSize, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(skeu.ink)
+                .frame(width: glyphBox, height: glyphBox)
+                .frame(width: SkeuControl.minTouch, height: rowH)
+                .contentShape(Rectangle())
+                .onTapGesture { SkeuHaptic.press(); showDayPicker = true }
+                .accessibilityLabel("Schedule")
+        }
+
     }
 
     /// The day this task is for, when it has one to state.
@@ -2501,9 +3210,9 @@ private struct SkeuTaskRow: View {
                 // NEGATIVE, because the space is not the chip's to give, and
                 // AFTER the frame — applied before it, the height frame
                 // re-measured and the pull was lost.
-                .padding(.leading, SkeuSpace.sm)
-                .frame(height: rowH)
-                .padding(.trailing, -9.2)
+                .padding(.leading, column ? 0 : SkeuSpace.sm)
+                .frame(height: column ? nil : rowH)
+                .padding(.trailing, column ? 0 : -9.2)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true) // the row's label already says it
         }
@@ -2524,7 +3233,7 @@ private struct SkeuTaskRow: View {
                 ReorderGrip(isActive: true, size: glyphSize, bandHeight: rowH)
                     .allowsHitTesting(false)
             } else {
-                ReorderGrip(isActive: reorder.isDragging(task.id),
+                ReorderGrip(isActive: reorder.isDragging(task.id) || transfer.taskID == task.id,
                             size: glyphSize, bandHeight: rowH)
                     .gesture(dragToReorder)
             }
@@ -2867,5 +3576,56 @@ private struct SkeuDayPickerSheet: View {
             .skeuPress { if !isPast { onPick(day) } }
             .opacity(isPast ? 0.45 : 1)
             .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+
+/// Only the boolean crosses the scroll geometry boundary: scrolling never
+/// invalidates the board or rebuilds the workspace menu.
+private struct SkeuQuickAdd: ViewModifier {
+    @Environment(\.skeu) private var skeu
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var hidden: Bool
+    var compact: Bool
+    var targetID: String
+    var add: () -> Void
+    @State private var overflows = false
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentSize.height > geometry.containerSize.height + 44
+            } action: { _, value in overflows = value }
+            .overlayPreferenceValue(SkeuCaptureBounds.self) { anchors in
+                GeometryReader { geometry in
+                let frame = anchors[targetID].map { geometry[$0] }
+                let captureVisible = frame.map { $0.minY >= 0 && $0.maxY <= geometry.size.height } ?? false
+                let show = overflows && !captureVisible && !hidden
+                ZStack(alignment: .bottomTrailing) {
+                if show {
+                    Button(action: add) {
+                        Image(systemName: "plus")
+                            .font(.system(size: compact ? 19 : 25, weight: .regular))
+                            .foregroundStyle(.white)
+                            .frame(width: compact ? 44 : 54, height: compact ? 44 : 54)
+                            .background(skeu.accentBottom, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add task")
+                    .padding(.trailing, compact ? 8 : F.margin)
+                    .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .animation(reduceMotion ? nil : SkeuMotion.layout, value: show)
+                }
+            }
+    }
+}
+
+private struct SkeuCaptureBounds: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }

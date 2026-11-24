@@ -60,6 +60,8 @@ final class ReorderCoordinator {
     /// How far the row would have to travel to sit exactly in its new slot.
     /// The flight it makes when the finger lifts.
     private(set) var settle: CGFloat = 0
+    private(set) var isSettling = false
+    private(set) var sessionID = UUID()
 
     /// The list as it stood when the drag began. The live list is re-derived
     /// from this and `toIndex`, so nothing is written until the finger lifts.
@@ -86,9 +88,6 @@ final class ReorderCoordinator {
     /// The grab and the release: the row rising off the page and settling back
     /// onto it. Short, and barely bouncy — it is a lift, not a throw.
     static let lift = Animation.spring(response: 0.22, dampingFraction: 0.78)
-    /// How long `drop` takes to settle, near enough. The copy is uncovered
-    /// after this — see the row's `onEnded`.
-    static let flightTime: Double = 0.30
 
     var isDragging: Bool { draggingID != nil }
 
@@ -99,6 +98,8 @@ final class ReorderCoordinator {
     func begin(_ task: TaskItem, in order: [UUID], frame: CGRect) {
         let id = task.id
         guard let index = order.firstIndex(of: id) else { return }
+        sessionID = UUID()
+        isSettling = false
         carriedTask = task
         slots = order
         fromIndex = index
@@ -163,10 +164,11 @@ final class ReorderCoordinator {
     /// Sends the floating copy to the slot it is going to live in. Called
     /// inside the drop animation; the row underneath is uncovered once it
     /// lands, by which time the two are in the same place.
-    func flyHome() { travel = settle }
+    func flyHome() { travel = settle; isSettling = true }
 
     func end() {
         carriedTask = nil
+        isSettling = false
         draggingID = nil
         travel = 0
         settle = 0
