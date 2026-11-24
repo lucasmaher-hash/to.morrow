@@ -5,7 +5,7 @@ title: Privacy Policy
 
 # Privacy Policy — to.morrow
 
-**Last updated:** 1 September 2026
+**Last updated:** 29 October 2026
 
 ## The short version
 
@@ -22,8 +22,7 @@ Everything you type or attach:
 - the day a task is filed under
 - whether it's done, flagged important, or archived
 - photos you attach
-- your settings: colour scheme, light or dark, typeface, tab names,
-  workspace names
+- your settings: colour scheme, tab names, workspace names
 
 This is held on your device. If you are signed into iCloud and sync is enabled,
 it is also mirrored to your **private CloudKit database** — the part of iCloud
@@ -44,17 +43,6 @@ Photos you attach are downscaled and stored with the task. The app asks for
 photo library access only when you tap the add-photo control, and for camera
 access only if you choose the camera. It reads only the photos you pick. It
 never scans your library.
-
-## The Lock Screen
-
-If you make a task live, its text is shown on your Lock Screen and in the
-Dynamic Island until you tick it off or switch it off. This uses Apple's Live
-Activities, which run on your device — the text is not sent anywhere, and no
-push notification service carries it. Anyone who can see your locked screen can
-read that one task, which is the point of the feature; nothing else about the
-app is shown there.
-
-The app has no Home Screen widgets, and none appears in the widget gallery.
 
 ## Deleting your data
 
