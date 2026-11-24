@@ -61,7 +61,8 @@ import Shove95Kit
             url: destination.appendingPathComponent(MacDraftMigration.storeName), cloudKitDatabase: .none)
         let container = try ModelContainer(for: MacCloudStore.schema, configurations: config)
         #expect(try container.mainContext.fetchCount(FetchDescriptor<TaskItem>()) > 0)
-        _ = try container.mainContext.fetch(FetchDescriptor<TaskPhoto>())
+        let photos = try container.mainContext.fetch(FetchDescriptor<TaskPhoto>())
+        #expect(photos.allSatisfy { $0.data?.isEmpty == false })
     }
 
     @Test func failedImportDoesNotCreateDestination() throws {

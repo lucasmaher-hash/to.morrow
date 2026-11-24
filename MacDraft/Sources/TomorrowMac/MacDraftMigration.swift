@@ -21,15 +21,15 @@ import Foundation
             return
         }
         let alert = NSAlert()
-        alert.messageText = "Bring your Mac Draft data to to.morrow?"
-        alert.informativeText = "If you used the earlier Mac Draft, select its dated backup folder. Tasks, photos and settings will be copied. The original stays untouched."
-        alert.addButton(withTitle: "Import Mac Draft…")
+        alert.messageText = "Import your existing to.morrow data?"
+        alert.informativeText = "If you used the earlier Mac version, select its dated backup folder. Tasks, photos and settings will be copied. The original stays untouched."
+        alert.addButton(withTitle: "Import Existing Data…")
         alert.addButton(withTitle: "Start Without Draft Data")
         alert.addButton(withTitle: "Quit")
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             let panel = NSOpenPanel()
-            panel.title = "Select your Mac Draft backup folder"
+            panel.title = "Select your to.morrow backup folder"
             panel.canChooseDirectories = true
             panel.canChooseFiles = false
             panel.allowsMultipleSelection = false
