@@ -6,46 +6,64 @@ import Shove95Kit
 @main
 struct TomorrowMac: App {
     @NSApplicationDelegateAdaptor(MacCloudAppDelegate.self) private var appDelegate
-    let container: ModelContainer
-    @StateObject private var live: MacLiveController
-    @StateObject private var settings: MacSettings
-    @StateObject private var cloud: MacCloudSync
+    @StateObject private var session = MacAppSession()
     @Environment(\.scenePhase) private var scenePhase
-    init() {
-        do {
-            let (created, mode) = try MacCloudStore.open()
-            _cloud = StateObject(wrappedValue: MacCloudSync(mode: mode))
-            container = created
-            let preferences = MacSettings()
-            _settings = StateObject(wrappedValue: preferences)
-            _live = StateObject(wrappedValue: MacLiveController(context: created.mainContext, settings: preferences))
-        } catch {
-            let alert = NSAlert()
-            alert.messageText = "to.morrow could not open your data"
-            alert.informativeText = "No original data was changed. Please relaunch to retry the import.\n" + error.localizedDescription
-            alert.runModal()
-            exit(EXIT_FAILURE)
-        }
-    }
     var body: some Scene {
-        WindowGroup("to.morrow — Mac draft") {
-            SkeuHost(settings: settings) {
-                BoardView().modelContainer(container).environmentObject(live).environmentObject(cloud)
-                    .onChange(of: scenePhase) { _, phase in if phase == .active { cloud.refresh(); live.reloadFromStore() } }
-            }.frame(minWidth: 960, minHeight: 600)
+        WindowGroup("to.morrow") {
+            Group {
+                if let state = session.state {
+                    SkeuHost(settings: state.settings) {
+                        BoardView().modelContainer(state.container).environmentObject(state.live).environmentObject(state.cloud)
+                            .onChange(of: scenePhase) { _, phase in
+                                if phase == .active { state.cloud.refresh(); state.live.reloadFromStore() }
+                            }
+                    }
+                } else { ProgressView("Opening to.morrow…") }
+            }
+            .frame(minWidth: 960, minHeight: 600)
+            .task { session.open() }
         }
         .defaultSize(width: 1180, height: 760)
         .windowStyle(.hiddenTitleBar)
         .commands {
             BoardCommands()
-            MacZoomCommands(settings: settings)
-            CommandMenu("Live") {
-                Button("Open Live Task") { live.show() }.keyboardShortcut("l", modifiers: [.command, .shift])
-                Button("Complete Live Task") { live.complete() }
-                    .disabled(live.note == nil || live.completing)
+            if let state = session.state {
+                MacZoomCommands(settings: state.settings)
+                CommandMenu("Live") {
+                    Button("Open Live Task") { state.live.show() }.keyboardShortcut("l", modifiers: [.command, .shift])
+                    Button("Complete Live Task") { state.live.complete() }
+                        .disabled(state.live.note == nil || state.live.completing)
+                }
             }
         }
+    }
+}
 
+@MainActor final class MacAppSession: ObservableObject {
+    struct State {
+        let container: ModelContainer
+        let settings: MacSettings
+        let live: MacLiveController
+        let cloud: MacCloudSync
+    }
+    @Published private(set) var state: State?
+    private var opening = false
+    func open() {
+        guard state == nil, !opening else { return }
+        opening = true
+        do {
+            let (container, mode) = try MacCloudStore.open()
+            let settings = MacSettings()
+            state = State(container: container, settings: settings,
+                live: MacLiveController(context: container.mainContext, settings: settings),
+                cloud: MacCloudSync(mode: mode))
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "to.morrow could not open your data"
+            alert.informativeText = "No original data was changed. Please relaunch to retry the import.\n" + error.localizedDescription
+            alert.runModal()
+            NSApplication.shared.terminate(nil)
+        }
     }
 }
 

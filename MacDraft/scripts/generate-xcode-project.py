@@ -35,13 +35,13 @@ for config,env,aps in [('Debug','Development','development'),('Release','Product
         SWIFT_OPTIMIZATION_LEVEL = "{'-Onone' if config=='Debug' else '-O'}";
         SWIFT_ACTIVE_COMPILATION_CONDITIONS = "{'DEBUG' if config=='Debug' else ''}";
         LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-        ENABLE_HARDENED_RUNTIME = YES; COMBINE_HIDPI_IMAGES = NO;
+        ENABLE_HARDENED_RUNTIME = YES; ENABLE_APP_SANDBOX = YES; COMBINE_HIDPI_IMAGES = NO;
     }};''')
 for prefix in ['project','target']:
     obj(prefix+'configs', f'isa = XCConfigurationList; buildConfigurations = ({key(prefix+"Debug")},{key(prefix+"Release")},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;')
 obj('target', f'''isa = PBXNativeTarget; name = TomorrowMac; productName = TomorrowMac; productReference = {key('app')}; productType = "com.apple.product-type.application";
 buildConfigurationList = {key('targetconfigs')}; buildPhases = ({key('sources')},{key('frameworks')},{key('resources')},); buildRules = (); dependencies = (); packageProductDependencies = ({key('dependency')},);''')
-obj('project', f'''isa = PBXProject; attributes = {{ LastUpgradeCheck = 2710; TargetAttributes = {{ {key('target')} = {{ CreatedOnToolsVersion = 27.1; DevelopmentTeam = 35875F7J33; ProvisioningStyle = Automatic; SystemCapabilities = {{ com.apple.iCloud = {{enabled = 1;}}; com.apple.Push = {{enabled = 1;}}; }}; }}; }}; }};
+obj('project', f'''isa = PBXProject; attributes = {{ LastUpgradeCheck = 2710; TargetAttributes = {{ {key('target')} = {{ CreatedOnToolsVersion = 27.1; DevelopmentTeam = 35875F7J33; ProvisioningStyle = Automatic; SystemCapabilities = {{ com.apple.iCloud = {{enabled = 1;}}; com.apple.Push = {{enabled = 1;}}; com.apple.Sandbox = {{enabled = 1;}}; }}; }}; }}; }};
 buildConfigurationList = {key('projectconfigs')}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base,); mainGroup = {key('group')}; productRefGroup = {key('products')}; projectDirPath = ""; projectRoot = ""; targets = ({key('target')},); packageReferences = ({key('package')},);''')
 project=root/'TomorrowMac.xcodeproj'; project.mkdir(exist_ok=True)
 (project/'project.pbxproj').write_text('// !$*UTF8*$!\n{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {\n'+'\n'.join(objects)+'\n}; rootObject = '+key('project')+'; }\n')

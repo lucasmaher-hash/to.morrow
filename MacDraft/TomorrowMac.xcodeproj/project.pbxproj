@@ -94,7 +94,7 @@ FBDC4F23F93125BBEEAE800C = { isa = PBXGroup; children = (7D1043473D55BFA90E8530D
         SWIFT_OPTIMIZATION_LEVEL = "-Onone";
         SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
         LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-        ENABLE_HARDENED_RUNTIME = YES; COMBINE_HIDPI_IMAGES = NO;
+        ENABLE_HARDENED_RUNTIME = YES; ENABLE_APP_SANDBOX = YES; COMBINE_HIDPI_IMAGES = NO;
     }; };
 E6DE6C99132752C914FEF632 = { isa = XCBuildConfiguration; name = Release; buildSettings = { SDKROOT = macosx; MACOSX_DEPLOYMENT_TARGET = 26.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; }; };
 639A7CA24D39909E713B47F7 = { isa = XCBuildConfiguration; name = Release; buildSettings = {
@@ -105,12 +105,12 @@ E6DE6C99132752C914FEF632 = { isa = XCBuildConfiguration; name = Release; buildSe
         SWIFT_OPTIMIZATION_LEVEL = "-O";
         SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
         LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-        ENABLE_HARDENED_RUNTIME = YES; COMBINE_HIDPI_IMAGES = NO;
+        ENABLE_HARDENED_RUNTIME = YES; ENABLE_APP_SANDBOX = YES; COMBINE_HIDPI_IMAGES = NO;
     }; };
 862894B703A6DEDF96A9DD6C = { isa = XCConfigurationList; buildConfigurations = (89E1FD6268CC0F221A2BE178,E6DE6C99132752C914FEF632,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
 C57128001CE614BF8549D6BB = { isa = XCConfigurationList; buildConfigurations = (7082CC0B6FC1282FCEABD07A,639A7CA24D39909E713B47F7,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
 0E8A3AD980EC179856012B7E = { isa = PBXNativeTarget; name = TomorrowMac; productName = TomorrowMac; productReference = 7D1043473D55BFA90E8530D3; productType = "com.apple.product-type.application";
 buildConfigurationList = C57128001CE614BF8549D6BB; buildPhases = (BCE16DD0260827ECF338C787,7561BFB015D8F536760CB671,0189424A5A60FED329FA868E,); buildRules = (); dependencies = (); packageProductDependencies = (DE58E2B17C19600779694943,); };
-98F54143AB4E86B28C3AFEE0 = { isa = PBXProject; attributes = { LastUpgradeCheck = 2710; TargetAttributes = { 0E8A3AD980EC179856012B7E = { CreatedOnToolsVersion = 27.1; DevelopmentTeam = 35875F7J33; ProvisioningStyle = Automatic; SystemCapabilities = { com.apple.iCloud = {enabled = 1;}; com.apple.Push = {enabled = 1;}; }; }; }; };
+98F54143AB4E86B28C3AFEE0 = { isa = PBXProject; attributes = { LastUpgradeCheck = 2710; TargetAttributes = { 0E8A3AD980EC179856012B7E = { CreatedOnToolsVersion = 27.1; DevelopmentTeam = 35875F7J33; ProvisioningStyle = Automatic; SystemCapabilities = { com.apple.iCloud = {enabled = 1;}; com.apple.Push = {enabled = 1;}; com.apple.Sandbox = {enabled = 1;}; }; }; }; };
 buildConfigurationList = 862894B703A6DEDF96A9DD6C; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base,); mainGroup = 64292B1C2B2E13EAD8788FC8; productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (0E8A3AD980EC179856012B7E,); packageReferences = (582681C2EAE02B3F3D399C0C,); };
 }; rootObject = 98F54143AB4E86B28C3AFEE0; }
