@@ -93,12 +93,13 @@ import Shove95Kit
 
 @MainActor enum MacCloudStore {
     static var schema: Schema { Schema([TaskItem.self, Workspace.self, TaskPhoto.self]) }
-    // Preserve the original draft store location, UUIDs, relationships and photos.
+    // Stable name preserves external-photo references after the copy-only migration.
     static func configuration(cloud: Bool) -> ModelConfiguration {
-        ModelConfiguration("TomorrowMacDraft", schema: schema,
+        ModelConfiguration("TomorrowMacDraft", schema: schema, url: MacDraftMigration.storeURL,
             cloudKitDatabase: cloud ? .private(MacCloudSync.containerID) : .none)
     }
     static func open() throws -> (ModelContainer, MacCloudSync.Mode) {
+        try MacDraftMigration.prepare()
         guard MacCloudSync.provisioned else {
             return (try ModelContainer(for: schema, configurations: configuration(cloud: false)), .localPreview)
         }

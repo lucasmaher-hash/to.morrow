@@ -19,7 +19,13 @@ struct TomorrowMac: App {
             let preferences = MacSettings()
             _settings = StateObject(wrappedValue: preferences)
             _live = StateObject(wrappedValue: MacLiveController(context: created.mainContext, settings: preferences))
-        } catch { fatalError("Could not open the Mac draft store: \(error)") }
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "to.morrow could not open your data"
+            alert.informativeText = "No original data was changed. Please relaunch to retry the import.\n" + error.localizedDescription
+            alert.runModal()
+            exit(EXIT_FAILURE)
+        }
     }
     var body: some Scene {
         WindowGroup("to.morrow — Mac draft") {
