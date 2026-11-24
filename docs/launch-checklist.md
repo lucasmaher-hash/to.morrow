@@ -11,7 +11,7 @@ Mac 1.0 (1) is prepared on `mac/app-store-1.0`: shared bundle ID, App Sandbox,
 release metadata and privacy manifest are present. Universal archive and App Store
 export succeeded. Lucas reported all local checks passed and explicitly
 authorized upload. Mac 1.0 (1) uploaded successfully; Apple reported processing.
-The native Mac platform page is now saved with build 1.0 (1), six full-resolution screenshots
+The native Mac platform page is now saved with build 1.0 (1), five selected full-resolution screenshots
 and copied metadata. Lucas selected automatic release after approval. Exact-build
 TestFlight testing and Add for Review remain his next steps. See the dated Mac evidence below.
 
@@ -55,7 +55,7 @@ Legend: 🤖 agent can prepare/verify; 🧑 Lucas makes the product/account deci
 | Distribution signing / Apple upload validation | Native Mac archive/export/validation/upload verified 24 November; iOS was not re-audited in this Mac-only task |
 | Public/Connect iOS version | 1.3, build 8, Ready for Distribution |
 | Current source iOS/extension versions | Both still 1.3 (8) |
-| Native macOS listing under existing app | macOS 1.0 Prepare for Submission; six 2880x1800 PNG screenshots, metadata, review notes and 1.0 (1) saved; automatic release after approval |
+| Native macOS listing under existing app | macOS 1.0 Prepare for Submission; five selected 2880x1800 PNG screenshots, metadata, review notes and 1.0 (1) saved; automatic release after approval |
 | Mac source identity | com.lucasmaher.shove95; 1.0 (1); “to.morrow”; minimum macOS 26.0 |
 | Mac App Sandbox | Signature permissions verified; Lucas reported all requested local checks passed on 24 November; exact processed TestFlight build still pending |
 | Mac category | public.app-category.productivity in archive/export; category warning absent |
@@ -243,12 +243,15 @@ The existing iOS target/version/listing were left untouched.
   was subsequently verified: Binary State Validated, build 1.0 (1) selected.
 - [x] **verified — native Mac listing:** macOS 1.0 exists under app 6798337661
   with state Prepare for Submission. Six 2880x1800 RGB/sRGB PNGs in
-  `store/screenshots/macos/2026-11-24-refined/` replaced the earlier three JPGs
-  at Lucas's request. Filenames 01–06 define order. The task-menu header is
+  `store/screenshots/macos/2026-11-24-refined/` replaced the earlier three JPGs.
+  Lucas then removed `02-live-panel.png`. The current five-image order is
+  01-move-tasks, 03-workspace-picker, 05-menu-bar-panel, 06-task-menu,
+  04-theme-settings. His removal and order are preserved. The task-menu header is
   aligned by removing its measured 64px title-bar offset and traffic lights;
   the menu-bar popover retains its black status bar. All images have restrained
   sharpening, with original source screenshots preserved. The remote gallery
-  shows 6 of 10 App Screenshots after reload. Description, keywords,
+  showed six after replacement; it now shows 5 of 10 App Screenshots after
+  Lucas's removal. Description, keywords,
   support and marketing URLs match the current iOS listing exactly. Shared
   privacy URL is `https://lucasmaher-hash.github.io/to.morrow/privacy.html` and
   Data Not Collected remains unchanged. Reviewer notes cover no login, optional
@@ -301,8 +304,10 @@ The existing iOS target/version/listing were left untouched.
   The Live menu-bar popover retains a native black menu bar to show its origin.
 - [x] **sent and verified — Mac gallery replacement:** uploaded all six full-size
   PNGs, then removed the superseded three JPGs from the Mac version's gallery
-  (retained in Asset Library and repo). Reload confirmed exactly six files in
-  order, no unsaved changes, unchanged metadata and automatic release still set.
+  (retained in Asset Library and repo). Reload confirmed six files initially.
+  Lucas then removed 02-live-panel and placed theme settings last. The final
+  gallery has five files, with his choice preserved, no unsaved changes,
+  unchanged metadata and automatic release still set.
 - [x] **verified — scope:** native macOS 1.0 only. No iOS screenshot/listing edits,
   no new binary upload, no Add for Review or agreement acceptance.
 

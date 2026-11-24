@@ -1,10 +1,13 @@
 # Native Mac 1.0 screenshots — 24 November 2026
 
-These six **2880 × 1800, RGB/sRGB, lossless PNGs** are the saved screenshot set
-in the native macOS 1.0 App Store Connect draft, verified after reload.
+This folder contains six **2880 × 1800, RGB/sRGB, lossless PNG** source assets.
+Five are selected in the native macOS 1.0 App Store Connect draft. Lucas removed
+`02-live-panel.png` after upload; that choice is preserved. The local source
+asset remains available as history.
 
-Order follows filenames 01–06: moving tasks, Live panel, workspace picker,
-theme settings, menu-bar popover, task menu.
+Current App Store order: moving tasks (01), workspace picker (03), menu-bar
+popover (05), task menu (06), theme settings (04). Do not automatically re-add
+the removed Live panel capture (02).
 
 Lucas captured these from an isolated preview with fake tasks. Exact pixel
 cleanup removes system/desktop clutter. The menu-bar popover retains a black
