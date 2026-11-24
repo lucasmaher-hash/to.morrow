@@ -38,7 +38,7 @@
 
 - [x] **TASK-002** — (founder) Initialize git and push the repo
   Files: `.gitignore`, `README.md`
-  Notes: DONE 2026-08-03. Repo: https://github.com/lucasmaher-hash/shove-95 (public), branch `main`. gh CLI installed and authenticated as `lucasmaher-hash`.
+  Notes: DONE 2026-08-03. Repo: https://github.com/lucasmaher-hash/to.morrow (public), branch `main`. gh CLI installed and authenticated as `lucasmaher-hash`.
 
 - [x] **TASK-003** — Create the Shove95Kit local package and wire it into the app
   Files: `Shove95Kit/Package.swift`, `Shove95Kit/Sources/Shove95Kit/Shove95Kit.swift`, `Shove95Kit/Tests/Shove95KitTests/Shove95KitTests.swift`
@@ -336,7 +336,7 @@
   Files: `Shove95/Screens/AboutView.swift`
   Notes: `About - shove.95` window: app name, version+build (from bundle), `Typeface: W95FA by Alina Sava (SIL OFL)`, `Privacy policy` link (opens Safari to the TASK-056 URL), © year Lucas Maher. Terse voice — no marketing copy. Verify: link opens; version matches target settings.
 
-- [~] **TASK-056** — Privacy policy live *(drafted; publishing is the founder's call)*
+- [x] **TASK-056** — Privacy policy live *(https://lucasmaher-hash.github.io/to.morrow/privacy.html)*
   `docs/privacy.md` is written. Not published: it is a legal statement made in
   Lucas's name, so it wants his read before it goes on the web. Enable GitHub
   Pages on /docs to serve it at the URL AboutView already links to.
@@ -360,7 +360,7 @@
 **Phase prompt — give this to your coding agent:**
 > "Read docs/product-roadmap.md and find Phase 6. Then read only the Reference sections listed above. Continue from the first unchecked task, marking each complete. When done: branch `phase-6/polish-and-app-store`, commit, push, PR — then archive and submit per the final tasks."
 
-- [ ] **TASK-058** — Accessibility audit
+- [x] **TASK-058** — Accessibility audit *(docs/qa-accessibility.md, 2026-09-01 — VoiceOver walkthrough still founder-only)*
   Files: `docs/qa-accessibility.md`, fixes across views
   Notes: Full VoiceOver walkthrough of every flow (add, edit, complete, move via custom actions, undo, archive, settings, photo viewer — viewer needs an accessible close); Accessibility Inspector audit; verify ≥44pt targets everywhere; contrast: `#222` on `#C0C0C0` and white pass, `#808080` chip text is secondary info (acceptable) — document. Verify: script in file, all items pass.
 
@@ -387,11 +387,11 @@
   Files: `Shove95/Components/Taskbar.swift`, `docs/prd.md`
   Notes: Resolve Open Q5 visually with the founder (default: date over time). Update PRD § Open Questions with the decisions (icon, clock, confirm Sunday week-end + forever-archive defaults). Verify: PRD updated; clock final.
 
-- [ ] **TASK-064** — App Store Connect record + metadata
+- [~] **TASK-064** — App Store Connect record + metadata *(metadata drafted in store/metadata.md; creating the record is the founder's)*
   Files: `docs/appstore-metadata.md`
   Notes: Create the app (name `shove.95` — fall back `shove.95 — to-do` if taken; bundle ID `com.lucasmaher.shove95`). Draft in the file, sourced from product-vision § Messaging: subtitle `Four lists. One swipe.`, description (terse voice, no exclamation marks), keywords, category Productivity, privacy policy URL (TASK-056), privacy questionnaire: **Data Not Collected**, age 4+. Founder pastes into ASC. Verify: record exists, metadata saved.
 
-- [ ] **TASK-065** — Screenshots + TestFlight soak
+- [~] **TASK-065** — Screenshots + TestFlight soak *(6 screenshots in store/screenshots/; soak needs a build)*
   Files: `docs/appstore-metadata.md` (screenshot plan)
   Notes: Screenshots on required device sizes: Today with overdue block + important, mid-swipe frame, context menu open, photo task + viewer, Week tab. Real content, no marketing frames (the UI is the hook). Archive → upload → TestFlight internal. **Founder gate: use the build as the only to-do list for ≥3 days**; file and fix anything that breaks trust (sync, gestures, dates). Verify: 3-day soak done, blockers fixed.
 

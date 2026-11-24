@@ -4,7 +4,7 @@
 //
 //  TASK-044. The camera half of photo capture. `UIImagePickerController` is
 //  the deliberate choice over a custom AVFoundation surface: the camera UI is
-//  the OS's, not ours, and dressing it in a Win95 skin would be costume rather
+//  the OS's, not ours, and dressing it in our skin would be costume rather
 //  than interface — the same reasoning that keeps the system photo picker.
 //
 //  Returns raw JPEG bytes; `ImageImport.prepare` does the downscale.

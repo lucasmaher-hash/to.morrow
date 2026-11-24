@@ -250,3 +250,19 @@ final class RowGestureCatcher: UIView {
         return elapsed > 0 ? dx / CGFloat(elapsed) : 0
     }
 }
+
+/// A row's frame on screen, held OUTSIDE SwiftUI's invalidation.
+///
+/// The frame is needed only when a gesture fires — to place the row menu, to
+/// hit-test a photo thumbnail, to tell the list where a focused field sits. It
+/// changes on every frame of every scroll, and while it lived in `@State`
+/// every one of those changes re-evaluated the row's whole body: ten visible
+/// rows × sixty times a second, to answer a question nobody was asking yet.
+///
+/// A plain reference type is the fix. Writing to it is invisible to SwiftUI,
+/// which is exactly right — nothing about the row's appearance depends on it
+/// (device trace 2026-08-22: the GPU sat at 5% while the CPU did this).
+@MainActor
+final class RowFrameBox {
+    var rect: CGRect = .zero
+}

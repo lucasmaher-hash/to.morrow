@@ -1,5 +1,23 @@
 # Product Vision — shove.95
 
+> ⚠️ **Superseded, 2026-09-03.** The Windows 95 pixel interface described
+> throughout this document (bevels, taskbar navigation, 2× pixel-unit
+> derivation, W95FA as the interface font, "Windows 95 rebuilt at 2× pixel
+> scale") was fully removed from the app on 2026-08-22 and replaced by
+> **SkeuKit**, a soft-skeuomorphic design system (`shove95/shove95/SkeuKit/`,
+> `docs/SKEUOMORPHIC_DESIGN_SYSTEM.md`). The four buckets are now three —
+> Today, Tomorrow, and Soon (renamed from General; Week was cut 2026-08-17)
+> — plus a separate Live panel. W95FA survives only as an optional "Retro"
+> chrome typeface, not the app's identity.
+>
+> The problem statement, personas, JTBD, and swipe-gesture value proposition
+> below are still substantially accurate. The **visual-design claims, brand
+> personality, messaging framework, and elevator pitches are not** — they
+> were written for the Windows 95 aesthetic specifically and have not been
+> rewritten for SkeuKit, since that's a brand-voice decision for the founder
+> to make, not one to invent here. Treat any passage below that describes
+> *how the app looks* as historical, not current.
+
 ## 1. Vision & Mission
 
 ### Vision Statement
@@ -202,7 +220,11 @@ The magic moment is fully achievable in the MVP. No scope adjustment is needed.
 
 ### Explicitly Out of Scope
 
-**Dark mode.** Tempting because iOS users expect it and the app will look wrong at night. Excluded because Windows 95 has no dark equivalent and inventing one is fan-fiction — a dark bevel system is a different design, not a variant. *Reconsider:* probably never. If it ever happens, it should be a genuine period alternative (a high-contrast or monochrome scheme), not a dimmed version of this one.
+**Dark mode.** ~~Excluded because Windows 95 has no dark equivalent and inventing one is fan-fiction — a dark bevel system is a different design, not a variant. *Reconsider:* probably never.~~
+
+**Reversed and shipped, 2026-08-14.** The founder called it: the app did look wrong at night, and that mattered more than the purity argument. The escape hatch written into the original entry is exactly the one taken — it is *not* a dimmed version of the light design. Each of the five schemes got a hand-built dark twin that keeps the bevel STRUCTURE intact (the light→dark ramp keeps its order, so a raised control still reads raised) while dropping the six colours. Red stays red. Title bars keep their hue and lose brightness. See `design.md` §1.
+
+The honest caveat: this is an invention, not a restoration. Windows 95 had no dark mode, and this is fan-fiction by the original standard — it is just fan-fiction that obeys the source's own physics.
 
 **Notifications and daily reminders.** Tempting because every task app has them. Excluded because they bring permission prompts, scheduling, background delivery and a whole class of bugs, for an app the user opens manually every morning anyway. *Reconsider:* v1.1 — it is the single most valuable deferred feature.
 
@@ -224,7 +246,7 @@ The magic moment is fully achievable in the MVP. No scope adjustment is needed.
 
 **Could Have** — App icon refinements; empty-state character beyond `(empty)`; a Windows 95 boot or splash flourish; archive grouped by week rather than day.
 
-**Won't Have (this time)** — Dark mode; notifications; the macOS app; multiple photos; recurring tasks; subtasks; tags; projects; search; sharing; collaboration; statistics; streaks; export; widgets; Apple Watch; Siri and Shortcuts integration.
+**Won't Have (this time)** — ~~Dark mode~~ (shipped 2026-08-14, see above); notifications; the macOS app; multiple photos; recurring tasks; subtasks; tags; projects; search; sharing; collaboration; statistics; streaks; export; widgets; Apple Watch; Siri and Shortcuts integration.
 
 ### Core User Flows
 
@@ -341,7 +363,7 @@ The voice is constant: factual, terse, system-flavoured. Tone shifts only in reg
 
 *"There are already a thousand to-do apps."* There are, and they're all better than this one at capture. None of them are good at the moment three hours later when your plan is already wrong.
 *"Isn't the Windows 95 thing a gimmick?"* It would be, if it were a skin. It's the actual interface — the taskbar is the navigation, the status bar carries undo, every dimension comes from the 1995 spec.
-*"Why no dark mode?"* Windows 95 didn't have one. A dark version would be a different design pretending to be this one.
+*"Why no dark mode?"* — retired 2026-08-14; the app ships one. If asked now: Windows 95 didn't have one, so this is an invention rather than a restoration — but it is built to the original's own bevel physics rather than being a dimmed copy of the light theme.
 *"Where's my data?"* In your private iCloud. There's no server, no account, no analytics, and no third party involved.
 
 ### Elevator Pitches

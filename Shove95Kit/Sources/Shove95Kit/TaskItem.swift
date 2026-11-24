@@ -24,6 +24,22 @@ public final class TaskItem {
     /// gets placed again the next time it goes overdue. Prevents re-placing a
     /// task the user has dragged (PRD §3 placement table).
     public var overduePlaced: Bool = false
+    /// The one task pinned to the Lock Screen and Dynamic Island — the
+    /// founder calls this "active" (2026-08-16).
+    ///
+    /// App-wide exactly one, across every workspace: the question it answers
+    /// is "what is the one thing right now", and that is not a per-folder
+    /// question. `TaskStore.pin(_:)` is the only writer and enforces it.
+    ///
+    /// Named `isPinned` rather than `isActive` because the file that acts on
+    /// it also holds ActivityKit's `Activity`, and two different meanings of
+    /// "active" in one place is how bugs get written. It SYNCS: pin on the
+    /// phone and the iPad's Lock Screen shows it too.
+    public var isPinned: Bool = false
+    /// The current Live focus. This is the SAME record shown in Today;
+    /// its title, completion, workspace and photos are shared by both views.
+    /// It stays in Today when replaced; completion clears the Live state.
+    public var isLiveNote: Bool = false
     // ── Photos ──────────────────────────────────────────────────────────
     // Each photo is its OWN record (TASK-050). The previous shape — one
     // `Data?` plus an `[Data]` array — could not go to CloudKit: an array of

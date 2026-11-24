@@ -25,25 +25,6 @@ public enum DateEngine {
         calendar.date(byAdding: .day, value: 2, to: startOfToday(now: now, calendar: calendar))!
     }
 
-    // MARK: - Week horizon (the Sunday that "Week" assigns)
-
-    /// The week ends on Sunday by definition — locked in the plan, independent
-    /// of locale. Returns the Sunday of the current week if it is still
-    /// *after tomorrow* (i.e. reachable by the Week tab); otherwise the Sunday
-    /// after that. Encodes the Fri/Sat/Sun rollover:
-    ///   Mon–Fri → this Sunday · Sat/Sun → next Sunday.
-    public static func weekHorizon(now: Date, calendar: Calendar) -> Date {
-        let today = startOfToday(now: now, calendar: calendar)
-        let weekday = calendar.component(.weekday, from: today) // 1 = Sunday … 7 = Saturday
-        let daysUntilSunday = (8 - weekday) % 7                 // 0 when today is Sunday
-        let thisSunday = calendar.date(byAdding: .day, value: daysUntilSunday, to: today)!
-        let tomorrow = startOfTomorrow(now: now, calendar: calendar)
-        if thisSunday > tomorrow {
-            return thisSunday
-        }
-        return calendar.date(byAdding: .day, value: 7, to: thisSunday)!
-    }
-
     // MARK: - Bucketing (total mapping)
 
     /// Which tab a task with this `dueDate` belongs to. Total: never returns
@@ -53,7 +34,10 @@ public enum DateEngine {
         guard let dueDate else { return .general }
         if dueDate < startOfTomorrow(now: now, calendar: calendar) { return .today }
         if dueDate < startOfDayAfterTomorrow(now: now, calendar: calendar) { return .tomorrow }
-        return .week
+        // Anything further out reports General and KEEPS its date — the tab is
+        // gone, the day is not (founder direction 2026-08-17). Its chip still
+        // names the weekday, and it walks into Tomorrow and Today on its own.
+        return .general
     }
 
     /// The date a task receives when moved to `bucket` (PRD §3).
@@ -61,7 +45,6 @@ public enum DateEngine {
         switch bucket {
         case .today: startOfToday(now: now, calendar: calendar)
         case .tomorrow: startOfTomorrow(now: now, calendar: calendar)
-        case .week: weekHorizon(now: now, calendar: calendar)
         case .general: nil
         }
     }
@@ -103,7 +86,7 @@ public enum DateEngine {
 
 extension TaskItem {
     public func bucket(now: Date, calendar: Calendar) -> Bucket {
-        DateEngine.bucket(for: dueDate, now: now, calendar: calendar)
+        isLiveNote ? .today : DateEngine.bucket(for: dueDate, now: now, calendar: calendar)
     }
 
     public func isOverdue(now: Date, calendar: Calendar) -> Bool {
@@ -111,12 +94,44 @@ extension TaskItem {
     }
 
     public func isArchived(now: Date, calendar: Calendar) -> Bool {
-        DateEngine.isArchived(dueDate: dueDate, isCompleted: isCompleted,
+        return DateEngine.isArchived(dueDate: isLiveNote ? DateEngine.startOfToday(now: now, calendar: calendar) : dueDate, isCompleted: isCompleted,
                               completedAt: completedAt, now: now, calendar: calendar)
     }
 
     public func isVisible(in tab: Bucket, now: Date, calendar: Calendar) -> Bool {
-        DateEngine.isVisible(in: tab, dueDate: dueDate, isCompleted: isCompleted,
+        return DateEngine.isVisible(in: tab, dueDate: isLiveNote ? DateEngine.startOfToday(now: now, calendar: calendar) : dueDate, isCompleted: isCompleted,
                              completedAt: completedAt, now: now, calendar: calendar)
+    }
+}
+
+
+/// Calendar-day average, including quiet days since the first recorded completion.
+/// The caller supplies the same workspace-scoped records used for the total.
+public struct CompletionStatistics {
+    public let total: Int
+    public let dailyAverage: Double
+
+    public init(tasks: [TaskItem], now: Date = .now, calendar: Calendar = .current) {
+        let completed = tasks.filter(\.isCompleted)
+        total = completed.count
+        let first = completed.map { min(now, $0.completedAt ?? $0.createdAt) }.min() ?? now
+        let days = max(1, (calendar.dateComponents([.day], from: calendar.startOfDay(for: first),
+                                                  to: calendar.startOfDay(for: now)).day ?? 0) + 1)
+        dailyAverage = Double(total) / Double(days)
+    }
+}
+
+
+public extension TaskItem {
+    /// Shared phone/Mac checkbox behavior. Unticking never silently re-pins.
+    func toggleCompletion(now: Date = .now, calendar: Calendar = .current) {
+        if !isCompleted && isLiveNote {
+            dueDate = calendar.startOfDay(for: now)
+            overduePlaced = false
+            isLiveNote = false
+        }
+        isCompleted.toggle()
+        completedAt = isCompleted ? now : nil
+        if isCompleted { isPinned = false }
     }
 }

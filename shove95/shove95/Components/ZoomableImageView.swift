@@ -12,9 +12,9 @@
 //  literally what Photos uses; a hand-rolled version would be worse and would
 //  never match the selection UI people already know.
 //
-//  Deliberately NOT skinned. The Win95 costume stops at the window frame: text
-//  selection handles and the lookup menu are OS furniture, and dressing them
-//  up would break the one interaction people already understand.
+//  Deliberately NOT skinned. The costume stops at the frame: text selection
+//  handles and the lookup menu are OS furniture, and dressing them up would
+//  break the one interaction people already understand.
 //
 
 import SwiftUI
@@ -46,6 +46,13 @@ final class ZoomScrollView: UIScrollView {
 
 struct ZoomableImageView: UIViewRepresentable {
     let image: UIImage
+    /// Reports whether the reader has zoomed in.
+    ///
+    /// The viewer around this closes on a downward drag, and while zoomed a
+    /// downward drag is how you look at the bottom of the picture. Whoever
+    /// owns the dismiss gesture has to be able to stand down, so the zoom
+    /// state has to leave this view (2026-08-23).
+    var onZoomChange: ((Bool) -> Void)?
 
     func makeUIView(context: Context) -> ZoomScrollView {
         let scrollView = ZoomScrollView()
@@ -79,12 +86,21 @@ struct ZoomableImageView: UIViewRepresentable {
 
     func updateUIView(_ scrollView: ZoomScrollView, context: Context) {}
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(onZoomChange: onZoomChange) }
 
     final class Coordinator: NSObject, UIScrollViewDelegate {
         weak var imageView: UIImageView?
         weak var scrollView: UIScrollView?
         private let interaction = ImageAnalysisInteraction()
+        private let onZoomChange: ((Bool) -> Void)?
+        /// Reported only on a CHANGE. `scrollViewDidZoom` fires continuously
+        /// through a pinch, and handing SwiftUI the same value sixty times a
+        /// second is state churn for nothing.
+        private var wasZoomed = false
+
+        init(onZoomChange: ((Bool) -> Void)?) {
+            self.onZoomChange = onZoomChange
+        }
 
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
 
@@ -96,6 +112,11 @@ struct ZoomableImageView: UIViewRepresentable {
             let extraY = max(0, (scrollView.bounds.height - imageView.frame.height) / 2)
             scrollView.contentInset = UIEdgeInsets(top: extraY, left: extraX,
                                                    bottom: extraY, right: extraX)
+
+            let zoomed = scrollView.zoomScale > scrollView.minimumZoomScale + 0.01
+            guard zoomed != wasZoomed else { return }
+            wasZoomed = zoomed
+            onZoomChange?(zoomed)
         }
 
         @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {

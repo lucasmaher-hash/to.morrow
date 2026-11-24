@@ -5,13 +5,11 @@ import Testing
 struct BucketSteppingTests {
     @Test func deferSteps() {
         #expect(Bucket.today.steppedOnce(.deferOne) == .tomorrow)
-        #expect(Bucket.tomorrow.steppedOnce(.deferOne) == .week)
-        #expect(Bucket.week.steppedOnce(.deferOne) == .general)
+        #expect(Bucket.tomorrow.steppedOnce(.deferOne) == .general)
     }
 
     @Test func pullSteps() {
-        #expect(Bucket.general.steppedOnce(.pullOne) == .week)
-        #expect(Bucket.week.steppedOnce(.pullOne) == .tomorrow)
+        #expect(Bucket.general.steppedOnce(.pullOne) == .tomorrow)
         #expect(Bucket.tomorrow.steppedOnce(.pullOne) == .today)
     }
 
@@ -21,7 +19,7 @@ struct BucketSteppingTests {
     }
 
     @Test func lineOrder() {
-        #expect(Bucket.line == [.today, .tomorrow, .week, .general])
+        #expect(Bucket.line == [.today, .tomorrow, .general])
     }
 }
 
@@ -29,26 +27,18 @@ struct BucketSteppingTests {
 struct BucketMenuTests {
     @Test func todayMenu() {
         #expect(Bucket.today.menuDestinations == [
-            .init(label: "> Week", bucket: .week),
-            .init(label: ">> General", bucket: .general),
+            .init(label: ">> Soon", bucket: .general),
         ])
     }
 
+    /// Empty on purpose: with Week gone, Tomorrow's only two neighbours are
+    /// both one swipe away, and the menu lists only what a swipe cannot reach.
     @Test func tomorrowMenu() {
-        #expect(Bucket.tomorrow.menuDestinations == [
-            .init(label: "> General", bucket: .general),
-        ])
-    }
-
-    @Test func weekMenu() {
-        #expect(Bucket.week.menuDestinations == [
-            .init(label: "< Today", bucket: .today),
-        ])
+        #expect(Bucket.tomorrow.menuDestinations.isEmpty)
     }
 
     @Test func generalMenu() {
         #expect(Bucket.general.menuDestinations == [
-            .init(label: "< Tomorrow", bucket: .tomorrow),
             .init(label: "<< Today", bucket: .today),
         ])
     }

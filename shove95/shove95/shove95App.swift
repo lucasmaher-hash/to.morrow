@@ -13,19 +13,36 @@ import Shove95Kit
 struct shove95App: App {
     private let container: ModelContainer
     @State private var store: TaskStore
+    @State private var activity: LiveActivityController
     @State private var settings = AppSettings()
     @State private var sync = SyncStatus()
-    /// Late splash: shown only if the first frame is slow, and then held long
-    /// enough not to flicker. See LaunchCover.
-    @State private var showLaunchCover = false
-    @State private var launchSettled = false
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        let (container, mode) = Self.makeContainer()
+        let (container, mode, isNewStore) = Self.makeContainer()
         self.container = container
-        _store = State(initialValue: TaskStore(context: container.mainContext))
+        let store = TaskStore(context: container.mainContext)
+        let activity = LiveActivityController()
+        _activity = State(initialValue: activity)
+        store.seedStarterTasksIfNeeded(isNewInstall: isNewStore)
+        _store = State(initialValue: store)
         _sync = State(initialValue: SyncStatus(mode: mode))
+
+        // The Lock Screen's tick button. `CompletePinnedTaskIntent` lives in
+        // the package so both targets can see it, and performs in THIS
+        // process — iOS launches the app in the background to run it — so the
+        // work is handed back up here, where the store is.
+        //
+        // Installed in `init` rather than a `.task`: on that background launch
+        // no scene is ever shown, so nothing in `body` is guaranteed to run
+        // before the intent performs. `init` always does.
+        // Found through `anyTask(withID:)`: unscoped, so a task pinned in Work
+        // is still found while Personal is open, and resolved BY THE ID THE
+        // CARD CARRIES rather than by whatever currently holds the pin — see
+        // that method for why the difference is not academic.
+        PinnedTaskActions.complete = { @MainActor id in
+            await activity.complete(taskID: id, store: store)
+        }
     }
 
     /// Sync when it's provisioned, local otherwise — and NEVER a crash.
@@ -41,44 +58,46 @@ struct shove95App: App {
         Bundle.main.object(forInfoDictionaryKey: "ShoveCloudKitEnabled") as? Bool ?? false
     }
 
-    private static func makeContainer() -> (ModelContainer, SyncStatus.Mode) {
-        let models: [any PersistentModel.Type] = [TaskItem.self, TaskPhoto.self, Workspace.self, AppPreferences.self]
+    private static func makeContainer() -> (ModelContainer, SyncStatus.Mode, Bool) {
+        let models: [any PersistentModel.Type] = [TaskItem.self, TaskPhoto.self, Workspace.self]
         let schema = Schema(models)
+        let storeURL = ModelConfiguration(schema: schema, cloudKitDatabase: .none).url
+        let isNewStore = !FileManager.default.fileExists(atPath: storeURL.path)
 
         do {
             guard cloudKitEnabled else {
                 let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
                 return (try ModelContainer(for: schema, configurations: local),
-                        .localOnly(reason: "iCloud not enabled for this build"))
+                        .localOnly(reason: "iCloud not enabled for this build"), isNewStore)
             }
             let cloud = ModelConfiguration(
                 schema: schema,
                 cloudKitDatabase: .private("iCloud.com.lucasmaher.shove95")
             )
-            return (try ModelContainer(for: schema, configurations: cloud), .syncing)
+            return (try ModelContainer(for: schema, configurations: cloud), .syncing, isNewStore)
         } catch {
             // Local store, same schema — the data is identical, only the
             // mirroring is absent.
             let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
             if let container = try? ModelContainer(for: schema, configurations: local) {
-                return (container, .localOnly(reason: error.localizedDescription))
+                return (container, .localOnly(reason: error.localizedDescription), isNewStore)
             }
             // Nothing on disk works: an in-memory store still lets the app run
             // rather than crash on launch. Nothing written here survives.
             let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             let container = try! ModelContainer(for: schema, configurations: memory)
-            return (container, .unavailable(reason: error.localizedDescription))
+            return (container, .unavailable(reason: error.localizedDescription), false)
         }
     }
 
     var body: some Scene {
         WindowGroup {
             ZStack {
-                RootView()
+                AppShell()
                 .environment(store)
+                .environment(activity)
                 .environment(settings)
                 .environment(sync)
-                .environment(\.win95Scheme, settings.scheme)
                 .modifier(PixelScale()) // stepped 2×/3×/4× (FR-015)
                 .task {
                     // Photos moved into their own records for CloudKit; this
@@ -89,39 +108,51 @@ struct shove95App: App {
                 // Seeding by launch argument keeps the debug controls off the
                 // screen: `simctl launch … -seedFillers YES`.
                 .task {
+                    // FIRST, so `-wipeAll YES -seedDemo YES` reads as "start
+                    // clean, then seed" rather than racing the two.
+                    if UserDefaults.standard.bool(forKey: "wipeAll") {
+                        store.wipeAllTasks()
+                    }
                     if UserDefaults.standard.bool(forKey: "seedFillers") {
                         store.seedScrollFillers()
+                    }
+                    if UserDefaults.standard.bool(forKey: "seedSoonSpread") {
+                        store.seedSoonSpread()
+                    }
+                    if UserDefaults.standard.bool(forKey: "seedArchive") {
+                        // AFTER the root has pointed the store at a workspace.
+                        // Seeded before that, the tasks carry no workspace and
+                        // every query filters them out again.
+                        try? await Task.sleep(for: .milliseconds(500))
+                        store.seedArchive()
+                    }
+                    if UserDefaults.standard.bool(forKey: "seedDemo") {
+                        store.seedDemo()
                     }
                 }
                 #endif
 
-                if showLaunchCover { LaunchCover() }
             }
             .task {
-                // If the app is ready inside this window, no cover at all.
-                try? await Task.sleep(for: .milliseconds(220))
-                guard !launchSettled else { return }
-                withAnimation(.easeOut(duration: 0.15)) { showLaunchCover = true }
-                // Held so a brief appearance doesn't read as a flicker.
-                try? await Task.sleep(for: .milliseconds(600))
-                withAnimation(.easeOut(duration: 0.25)) { showLaunchCover = false }
-            }
-            .task {
-                // "Ready" = the first query has returned. Cheap, and it is the
-                // thing that actually takes time on a cold CloudKit launch.
+                // Warms the store. The first query is the thing that actually
+                // takes time on a cold CloudKit launch, so it is worth firing
+                // before the list asks for it — but nothing waits on it now.
                 _ = store.tasks(in: .today)
-                launchSettled = true
-                if showLaunchCover {
-                    try? await Task.sleep(for: .milliseconds(400))
-                    withAnimation(.easeOut(duration: 0.25)) { showLaunchCover = false }
-                }
             }
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
+                // WARM the taptic generators. They are held statically, which
+                // is half the job — an unprepared generator drops or weakens
+                // its first impulse, and this look fires rarely enough that
+                // its first impulse was almost always the one you felt
+                // (founder bug report 2026-08-17). Skeu got away with it by
+                // firing constantly and keeping them warm by accident.
+                SkeuHaptic.prepare()
                 // Day-rollover placement pass — cheap and idempotent (PRD §2).
-                store.runDayRolloverPassIfNeeded()
+                store.runDayRolloverPassIfNeeded(
+                    timeRules: settings.timeRulesEnabled(for: .today))
                 sync.refreshAccountStatus()
             }
         }

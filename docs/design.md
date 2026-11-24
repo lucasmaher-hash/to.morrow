@@ -26,7 +26,19 @@ The pixel unit is **variable** — it is the mechanism for accessibility scaling
 | 3× | 3pt | system text size ≥ large |
 | 4× | 4pt | accessibility text sizes |
 
-**Appearance is locked to light.** Windows 95 has no dark mode and a dark bevel system is a different design, not a variant. The app sets `.preferredColorScheme(.light)` and does not respond to the system setting.
+**Appearance follows a global setting (revised 2026-08-14).** This section previously read "appearance is locked to light — Windows 95 has no dark mode and a dark bevel system is a different design, not a variant." That reasoning still holds historically, but the app now ships Light / Dark / System as one global `AppearanceMode` shared by both design modes, so the lock is gone: the root sets `.preferredColorScheme(settings.appearance.preferred)`, which returns `nil` for System so the device setting is honoured.
+
+The dark palettes are an **invention**, not a restoration — Windows 95 had none. They are built to the same STRUCTURE rather than to authenticity, and the rules that survive are recorded in `Win95Scheme.swift`:
+
+- `highlight` / `light` / `shadow` / `darkShadow` keep their ORDER, so a raised bevel still reads raised. Inverting the ramp would flip every control into looking pressed.
+- `well` stays the lightest-relative surface of its scheme — it is the paper the list is written on.
+- `important` is untouched (it is not part of the scheme at all): red carries exactly one meaning in every palette and every mode.
+- Title bars keep their hue and lose brightness, so a scheme is still recognisably itself in the dark.
+
+Two consequences worth naming, both found as bugs on 2026-08-14:
+
+- `titleA` is deliberately darkened for dark-mode title bars, which makes it too low-contrast for a small standalone glyph. `Win95.accent` therefore resolves to the brighter `titleB` stop, lightened further, when the scheme is dark.
+- Text sitting ON the title gradient must use `selectionText`, never `highlight`. `highlight` is a bevel-edge colour — near-white in the light schemes by coincidence, mid-grey in the dark ones.
 
 -----
 
@@ -262,10 +274,25 @@ Things that would break the system, listed so they don't get reintroduced by hab
 - Corner radii, drop shadows, blur, translucency, SF Symbols, system tint colours
 - Any gradient other than the title bar
 - Any red that isn't Important
-- Fade, scale, dissolve, or cross-fade transitions of any kind
 - Continuous (non-stepped) Dynamic Type
-- Dark mode
 - Microsoft's icon artwork, the Windows logo, the Start button, or the word "Windows" in any user-facing string
+
+("Dark mode" was on this prohibited list until 2026-08-14. It now ships — see §1 for the structural rules it has to obey. The prohibition on *inverting the bevel ramp* is what actually mattered, and that still stands.)
+
+**Transitions came off this list on 2026-08-16.** It read "Fade, scale,
+dissolve, or cross-fade transitions of any kind", and it was wrong about what
+this design is. The vintage lives in the SURFACES — the bevel ramp, the pixel
+grid, the two-tone chrome, the absence of a radius. It was never supposed to
+live in the movement. A 1995 machine drew a menu in one frame because it could
+not afford to draw it in twelve, not because instant was the intent; holding
+the app to that limit costs the feel and buys nothing back.
+
+So: **animate freely, in both looks.** Motion is a shared modern layer over
+two different surface treatments, not a third thing the looks disagree about.
+The constraints that remain are the ones about substance, not speed — a
+transition may not introduce a radius, a blur, a translucency or a system tint
+that the static design forbids, and position still lands on the pixel grid so
+nothing comes to rest half a pixel off.
 
 
 ---

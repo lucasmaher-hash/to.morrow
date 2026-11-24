@@ -1,5 +1,12 @@
 # Turning on iCloud sync (TASK-050)
 
+> **Current state, 7 November 2026:** Production schema additions for Live were
+> deployed. The signed Mac app and existing physical iPhone app exchanged tasks
+> successfully, including a completion from iPhone back to Mac. Initial return
+> verification required restarting Mac; continuous in-place refresh, photo and
+> offline round trips remain to be checked. See `MacDraft/HANDOFF-2026-11-05.md`.
+> The setup instructions below describe the original provisioning process.
+
 Everything in the code is ready. What's left needs your Apple Account, so it
 has to happen in Xcode on your machine — it's about two minutes.
 

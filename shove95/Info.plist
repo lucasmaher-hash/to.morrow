@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ShoveCloudKitEnabled</key>
+	<true/>
 	<key>UIAppFonts</key>
 	<array>
 		<string>W95FA.otf</string>
@@ -10,7 +12,5 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
-	<key>ShoveCloudKitEnabled</key>
-	<true/>
 </dict>
 </plist>
