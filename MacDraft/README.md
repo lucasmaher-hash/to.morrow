@@ -1,7 +1,8 @@
 # to.morrow for macOS
 
 Native SwiftUI companion to the iPhone app, sharing the `Shove95Kit` models.
-This is a development build, not an App Store release.
+Mac App Store candidate: **1.0 (1)**, bundle ID `com.lucasmaher.shove95`.
+Minimum macOS **26.0**, universal arm64/x86_64. No build has been uploaded.
 
 ## Features
 
@@ -31,26 +32,51 @@ swift build --scratch-path /private/tmp/tomorrow-mac-draft-build
 swift test --scratch-path /private/tmp/tomorrow-mac-draft-build
 ```
 
-For the owner's provisioned iCloud build, run `scripts/build-icloud-app.sh`.
+For a provisioned iCloud build, run `scripts/build-icloud-app.sh` with a new
+output app path. It refuses to overwrite an existing app.
 Other developers must configure their own signing team, bundle identifier and
 CloudKit container before using that path. Never use someone else's production
 container for test data. Unprovisioned builds use local storage instead.
 
 ## Data and release status
 
-The store location is preserved across the development builds. A pre-sync backup
-is created before first opening an existing local store with CloudKit enabled.
-Release configuration targets Production; Debug uses Development. Account and
-transfer status are visible in Settings.
+The App Store build uses App Sandbox, outgoing network access and read-only
+user-selected files, alongside the existing CloudKit/push entitlements. Release
+uses Production; Debug uses Development. The iCloud container remains
+`iCloud.com.lucasmaher.shove95`.
 
-Tests cover local model operations, attachment preparation/storage, drag
-placement, Live completion and background sync notifications. Automated tests do
-not establish end-to-end CloudKit delivery, offline reconciliation or gesture
-behavior on every system. Real-device photo/offline sync and distribution
-validation still require release testing.
+On first launch, choose Import Existing Data and select the dated backup folder.
+The backup must contain `Application Support/TomorrowMacDraft.store`, its SQLite
+sidecars and external-photo directories, plus `preferences-export.plist` exported
+from `com.lucasmaher.tomorrow.macdraft`. A read-only system folder picker grants
+access; no broad filesystem exception is used. The original backup is not changed.
+The importer stages a copy and commits its directory atomically before opening
+SwiftData. It imports only Mac preferences, preserves existing preference values,
+and never merges into or overwrites an existing destination. Cancelling or an
+import error stops startup so it cannot silently open an empty store.
 
-App Store identity, sandboxing, category and distribution setup are still release
-work. No App Store upload or release is performed by committing this source.
+The sandbox store is `Library/Application Support/to.morrow/TomorrowMacDraft.store`
+inside `~/Library/Containers/com.lucasmaher.shove95/Data/`. The original
+unsandboxed store and installed Draft app remain in place. After migration, the
+first cloud-backed open also backs up the new store, sidecars and real
+`.TomorrowMacDraft_SUPPORT` photo directory before syncing.
+
+**Verified 24 November 2026:** 34 Mac tests passed, including migration using a
+disposable copy of the dated backup, byte preservation of store/assets,
+idempotency, existing preferences and reading migrated photo payloads. The
+universal Release archive and App Store distribution export succeeded. Apple
+validate-only also succeeded for final source commit `b60fe57`, with no validation
+errors/warnings or upload event. Evidence is in `../docs/launch-checklist.md`.
+
+**Open:** visible sandbox migration/persistence, Photos/Files picker import,
+menu-bar behavior and physical iPhone sync under sandbox. Native app UI automation
+timed out for both this app and Xcode. Lucas chose to leave device checks for his
+TestFlight test. Automated tests do not establish end-to-end CloudKit delivery.
+No store, original photo, iOS target or iOS listing was reset or changed.
+
+Uploading requires Lucas's explicit `go`. Adding macOS to the existing listing,
+selecting 1.0 (1), manual release and App Review remain separate steps. Do not
+click Add for Review or accept agreements as part of preparation.
 
 ## Assets
 

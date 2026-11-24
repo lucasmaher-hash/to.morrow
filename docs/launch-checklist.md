@@ -7,8 +7,10 @@ account backend or payment service. Lucas approved the current iOS/Mac design.
 **Current state (24 November 2026):** iOS 1.4 (9) is uploaded and submitted;
 App Store Connect shows "Waiting for Review". Lucas confirmed sync and tested
 the build on his iPhone; 44 iOS tests passed. iOS Phase 0/1 items are done.
-Mac still has a draft identity, no App Sandbox and no app category: Phase 2
-onward is open.
+Mac 1.0 (1) is prepared on `mac/app-store-1.0`: shared bundle ID, App Sandbox,
+release metadata and privacy manifest are present. Universal archive and App Store
+export succeeded. No Mac build has been uploaded; native macOS listing and
+TestFlight/device checks remain open. See the dated Mac evidence below.
 
 ## Recommended next order
 
@@ -42,7 +44,7 @@ Legend: 🤖 agent can prepare/verify; 🧑 Lucas makes the product/account deci
 | Check | Result |
 |---|---|
 | iOS regression tests | 43 passed, 0 failures |
-| Mac tests | 32 passed on 11 November after the Live control fixes |
+| Mac tests | 34 passed on 24 November, including two migration tests and real external-photo backup coverage |
 | Shared model tests | 60 passed, 0 failures |
 | Release iOS archive | Succeeded, signing disabled for audit |
 | Mac builds | Unsigned audit archive succeeded 7 November; current development-signed universal Release build succeeds |
@@ -50,12 +52,12 @@ Legend: 🤖 agent can prepare/verify; 🧑 Lucas makes the product/account deci
 | Public/Connect iOS version | 1.3, build 8, Ready for Distribution |
 | Current source iOS/extension versions | Both still 1.3 (8) |
 | Native macOS listing under existing app | Absent; Distribution/TestFlight show iOS only |
-| Mac source identity | com.lucasmaher.tomorrow.macdraft; 0.1 (1); “to.morrow Mac Draft” |
-| Mac App Sandbox | Not present in entitlements |
-| Mac category | Missing; archive emits No App Category warning |
+| Mac source identity | com.lucasmaher.shove95; 1.0 (1); “to.morrow”; minimum macOS 26.0 |
+| Mac App Sandbox | Verified in exported app signature with network client and user-selected read-only files; visible picker/device checks open |
+| Mac category | public.app-category.productivity in archive/export; category warning absent |
 | iOS packaged privacy manifest / icon / font license | Present |
 | Mac packaged icon / font license | AppIcon.icns and W95FA-LICENSE.txt present |
-| Mac privacy manifest | Absent. Review disclosures; do not treat iOS-only required-reason rules as an automatic Mac rejection |
+| Mac privacy manifest | Packaged PrivacyInfo.xcprivacy; no tracking/collection; own UserDefaults reason CA92.1 |
 | Privacy URL | Correct /to.morrow/privacy.html saved in the new 1.4 draft; takes effect with the next release. Previously published link returns 404 |
 | Correct in-app privacy URL | /to.morrow/privacy.html returns HTTP 200 |
 | CloudKit production schema | Missing Live fields deployed 7 November; no reset/removal |
@@ -145,7 +147,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   **You'll know it worked when:** the signed app has `com.apple.security.app-sandbox`
   enabled, launches, retains data, and syncs under its real sandbox permissions.
 
-- [ ] 🤖 **Remove draft release metadata** — estimate 20–40 minutes. Set the
+- [x] 🤖 **Remove draft release metadata** — estimate 20–40 minutes. Set the
   intended public version (recommend Mac 1.0/build 1), remove “Mac Draft” from
   menu/window/bundle name, add `LSApplicationCategoryType` productivity, and confirm
   icon packaging. Current Mac minimum is macOS 26.0; deliberately keep or lower
@@ -153,6 +155,10 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   > Prepare final native Mac naming/version/category/icon metadata, including the generator script so regeneration preserves it. Verify the archive and supported architectures.
   **You'll know it worked when:** no draft name appears, the category warning is
   gone, and the archive metadata matches the Mac listing.
+
+- [x] 🤖 **Package Mac privacy manifest** — checked 24 November: native resource
+  and preview packaging include `PrivacyInfo.xcprivacy`, matching iOS disclosures
+  and naming actual Mac settings/migration use. Archive and exported app contain it.
 
 - [ ] 🤝 **Build the Mac store page** — estimate 1–2 hours. Add Mac screenshots,
   platform description/keywords, privacy/support URLs, release/reviewer notes,
@@ -180,6 +186,81 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   Keep manual release selected if Lucas wants a final release decision.
   **You'll know it worked when:** each platform reaches Waiting for Review, then
   approval; manual approval still needs the separate Release action.
+
+## Native Mac candidate evidence — 24 November 2026
+
+Status vocabulary: **prepared** = implementation/assets available; **verified** =
+observed by a stated check; **sent** = uploaded/submitted. No Mac build is sent.
+The existing iOS target/version/listing were left untouched.
+
+- [x] **verified — identity:** generator and regenerated project use
+  `com.lucasmaher.shove95`, team `35875F7J33`. CloudKit container is unchanged:
+  `iCloud.com.lucasmaher.shove95`. Regeneration is byte-identical.
+  The Phase 2 identity checkbox remains open until the Mac platform exists.
+- [x] **verified — backup before ID change:** dated, private offline backup with
+  a SHA-256 manifest, 13 files / 7,498,298 bytes. Includes store/WAL/SHM,
+  `.TomorrowMacDraft_SUPPORT`, CloudKit asset directory, previous pre-sync backup,
+  original preference plist and exported preferences. No private data was committed.
+- [x] **verified — migration algorithm:** two new regression tests use a
+  disposable copy of the dated backup. Copy bytes match, rerunning leaves the
+  destination unchanged, existing preferences win, original copy is unchanged,
+  migrated SwiftData opens and photo payloads remain readable. Staging is atomic;
+  cancellation/failure stops startup before an empty store can be created.
+- [x] **verified — signed sandbox permissions:** exported app has App Sandbox,
+  outgoing client networking and user-selected read-only file access, alongside
+  production push and Production CloudKit. `get-task-allow` is absent. No broad
+  Photos, Documents or home-directory exceptions were added.
+- [x] **verified — Mac tests:** **34 passed, 0 failed**, 8 suites. Includes the
+  existing 32 tests plus migration success/failure tests; strengthened the existing
+  backup regression to cover the real `.TomorrowMacDraft_SUPPORT/_EXTERNAL_DATA`
+  directory. Tests open copies with CloudKit disabled.
+- [x] **verified — release metadata/resources:** archive/export contain
+  to.morrow 1.0 (1), Productivity category, macOS **26.0** minimum, arm64/x86_64,
+  AppIcon.icns (including 1024px image), font/license and privacy manifest.
+- [x] **verified — distribution export:** Release archive and local
+  `app-store-connect` export succeeded with `-allowProvisioningUpdates`.
+  Installer uses the Mac App Store installer identity and app signature verifies
+  strictly; production entitlements were inspected in the expanded package.
+- [x] **verified — final candidate Apple validation:** validate-only succeeded
+  for source commit `b60fe57` at 11:35 CET. Xcode recorded “Validation succeeded”,
+  empty validation errors/warnings and `uploadEvent=(null)`. No build was uploaded.
+- [ ] **prepared — visible sandbox checks:** first-launch backup picker,
+  persistence after relaunch, Photos/Files import, menu-bar Live behavior and
+  iPhone round trips remain open. Native UI automation timed out for both the
+  app and Xcode. No physical iPhone was connected. Lucas explicitly chose to
+  leave these device checks for his TestFlight test.
+- [ ] **sent — upload:** requires Lucas's explicit `go`; no upload performed.
+- [ ] **prepared — native Mac listing:** screenshot files verified from commit
+  `e5be044`: `store/screenshots/macos/01-plan-your-day.jpg`,
+  `02-switch-workspaces.jpg`, `03-make-it-yours.jpg`. After upload and Lucas's go,
+  use Chrome to add macOS to app 6798337661. Copy current iOS description,
+  keywords and support/marketing/privacy URLs by reading the listing then; local
+  `store/metadata.md` is historical and must not be assumed current. Review notes:
+  no app login; optional iCloud; Live is a menu-bar panel, opened by clicking the
+  status item or Cmd-Shift-L. Select 1.0 (1), choose manual release and stop before
+  Add for Review. Do not accept agreements or sign in for Lucas.
+
+Warnings/errors recorded during preparation:
+
+1. Initial test signing in the file-provider workspace failed with resource
+   fork/Finder information. Rebuilt in `/private/tmp`; final 34 tests passed.
+2. Archive warning: “Metadata extraction skipped, no AppIntents.framework
+   dependency found”. No App Intents dependency is used by this Mac target.
+3. First validate-only invocation rejected `destination=export`; Xcode requires
+   its transport destination for `method=validation`. The validation-only action
+   then succeeded without creating a build upload event.
+4. Concurrent export/validation generated the same logging-bundle filename
+   (Cocoa error 516). Xcode fell back to inline logging; both operations still
+   succeeded, and the final validation event has empty errors/warnings.
+5. Native automation `timeoutReached` is unresolved. It also occurs for Xcode;
+   do not infer visual app behavior or a hang from that timeout. Only process
+   startup, signatures, automated tests and packaging are established.
+
+Release evidence is kept with the private local release outputs, including the
+backup manifest, final test/archive/export/validation logs and package checksums.
+Physical device/TestFlight checks, processed-build selection, Add for Review and
+manual release remain Lucas's release gates. No store, photo or original app was
+deleted or replaced.
 
 ## Authoritative references
 

@@ -8,22 +8,25 @@ Apple Account in system settings on both devices.
 ## Builds
 
 - `scripts/build-icloud-app.sh` builds/signs the native Xcode target with the
-  existing Developer team, provisions the Mac, and installs to
-  `~/Applications/to.morrow.app`. Release explicitly uses **Production**, so it
+  existing Developer team, provisions the Mac, and copies to a
+  new output app path (default `~/Applications/to.morrow.app`). Existing apps are
+  never overwritten by this script. Release explicitly uses **Production**, so it
   can sync with an App Store / TestFlight iPhone installation. Debug uses
   **Development**, which is a separate database.
 - `scripts/package-app.sh` remains an **offline, ad-hoc-signed preview**.
   It cannot use iCloud. Settings says so; no CKContainer is constructed.
 - Xcode: open `TomorrowMac.xcodeproj`, scheme TomorrowMac, destination My Mac.
   The project references the existing local Shove95Kit package.
-- This development app currently retains the unsandboxed draft's original store
-  path. A future Mac App Store release needs sandboxing and an explicit migration
-  of that path; enabling sandboxing alone would show a different empty store.
+- The Mac App Store candidate uses App Sandbox and the shared bundle ID
+  `com.lucasmaher.shove95`. Before first store open, its read-only folder picker
+  imports a dated Draft backup into its own sandbox. See README.md for the
+  backup layout and one-time migration behavior. No legacy store is moved/reset.
 
 ## Preservation and behavior
 
-Cloud-backed startup opens the original `TomorrowMacDraft` store in place,
-preserving task UUIDs, workspace links and photos. Before the first cloud-backed
+Cloud-backed startup opens the sandbox copy of `TomorrowMacDraft`, preserving
+task UUIDs, workspace links and photos. The original unsandboxed files remain
+untouched. Migration is tested on a disposable copy of the dated backup. Before the first cloud-backed
 open, the store, SQLite sidecars and external asset directory are copied to
 `Before-iCloud-TomorrowMacDraft` next to the existing store. Failure to back up or
 open with CloudKit falls back to local storage. No seed/demo records are inserted
@@ -55,3 +58,11 @@ Before declaring end-to-end sync verified: create/rename/reorder/complete a task
 on each device, check workspace names and task assignments in both directions,
 attach a photo on iPhone, and check offline edits after reconnection. A successful
 Mac upload alone does not verify receipt by a physical iPhone.
+
+## App Store candidate, 24 November 2026
+
+Release export verifies Production CloudKit, production push, App Sandbox,
+outgoing network and read-only user-selected file entitlements; get-task-allow
+is absent. Only the Mac target changed. 34 Mac tests passed. This does not prove
+physical iPhone delivery or sandbox picker behavior. Lucas deferred the real
+device checks to his TestFlight test. No new build has been uploaded.
