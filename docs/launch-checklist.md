@@ -4,10 +4,11 @@ Release handoff updated 11 November 2026; initial audit 7 November. Native Swift
 apps share SwiftData models and a private CloudKit container. There is no custom
 account backend or payment service. Lucas approved the current iOS/Mac design.
 
-**Current state:** UI work is ready for release preparation. Neither binary is
-ready to upload as-is: iOS still uses the already-published 1.3 (8), and Mac still
-has a draft identity, no App Sandbox and no app category. No review submission or
-App Store release was performed in this session.
+**Current state (24 November 2026):** iOS 1.4 (9) is uploaded and submitted;
+App Store Connect shows "Waiting for Review". Lucas confirmed sync and tested
+the build on his iPhone; 44 iOS tests passed. iOS Phase 0/1 items are done.
+Mac still has a draft identity, no App Sandbox and no app category: Phase 2
+onward is open.
 
 ## Recommended next order
 
@@ -67,7 +68,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
 
 ## Phase 0 — functional release gates
 
-- [ ] 🤖 **Check automatic sync without restarting** — estimate 1–3 hours to
+- [x] 🤖 **Check automatic sync without restarting** — estimate 1–3 hours to
   reproduce/diagnose; fixes may take longer. Test tasks created, renamed,
   completed, moved, reordered, and deleted on each physical device while both
   apps stay open. Test workspace creation/rename too. The completion verification
@@ -76,7 +77,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   **You'll know it worked when:** both screens update from remote changes in the
   already-running apps, including the Mac menu-bar Live panel.
 
-- [ ] 🤖 **Check photos and offline recovery** — estimate 1–3 hours for testing,
+- [x] 🤖 **Check photos and offline recovery** — estimate 1–3 hours for testing,
   excluding any fixes. Initial bulk import logged missing `.interim` external-data
   file clone errors. These are not proof of permanent photo loss, but need checking.
   Add a new photo on iPhone, verify its stored asset and actual display; disconnect,
@@ -91,7 +92,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   Photos chooser opening verified in the signed Mac app; 29 Mac tests passed.
   Production cross-device photo/offline round trips remain a separate gate above.
 
-- [ ] 🤝 **Test the final distribution builds as a user** — estimate 1–2 hours.
+- [x] 🤝 **Test the final distribution builds as a user** — estimate 1–2 hours.
   Cover iOS 18 minimum support, current iOS, small-screen portrait/landscape,
   Live Activity completion, Mac menu-bar popup, keyboard input, settings, archive,
   dragging, and no-iCloud local use. Upgrade an existing iOS installation, keeping
@@ -101,13 +102,13 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
 
 ## Phase 1 — iOS release preparation
 
-- [ ] 🤖 **Bump version/build** — estimate 10 minutes. Recommend **1.4 (9)**,
+- [x] 🤖 **Bump version/build** — estimate 10 minutes. Recommend **1.4 (9)**,
   since 1.3 (8) is already published and 8 is the highest uploaded build observed.
   Set matching app and Live Activity extension values.
   > Prepare iOS version 1.4 build 9 for both the main app and ShoveWidgets, then verify the values in the archive. Do not upload yet.
   **You'll know it worked when:** the archive contains 1.4/9 for both bundles.
 
-- [ ] 🤖 **Repair privacy metadata and clarify policy** — estimate 20–40 minutes.
+- [x] 🤖 **Repair privacy metadata and clarify policy** — estimate 20–40 minutes.
   Created the iOS 1.4 draft and saved
   `https://lucasmaher-hash.github.io/to.morrow/privacy.html` in App Privacy.
   Apple marks the change Edited and says it applies with the next version. The
@@ -119,7 +120,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   **You'll know it worked when:** store links open the correct page and its claims
   match what actually syncs. This is a content accuracy review, not legal advice.
 
-- [ ] 🤝 **Prepare new-version store assets and notes** — estimate 30–90 minutes.
+- [x] 🤝 **Prepare new-version store assets and notes** — estimate 30–90 minutes.
   Existing iPhone screenshots can be reused where still accurate; review them against
   the flat checkboxes, linked Today/Live behavior and updated controls. Write 1.4
   release notes and reviewer instructions using only verified features/tests.
