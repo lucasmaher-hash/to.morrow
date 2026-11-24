@@ -29,12 +29,19 @@ struct TomorrowMac: App {
             BoardCommands()
             if let state = session.state {
                 MacZoomCommands(settings: state.settings)
-                CommandMenu("Live") {
-                    Button("Open Live Task") { state.live.show() }.keyboardShortcut("l", modifiers: [.command, .shift])
-                    Button("Complete Live Task") { state.live.complete() }
-                        .disabled(state.live.note == nil || state.live.completing)
-                }
+                MacLiveCommands(live: state.live)
             }
+        }
+    }
+}
+
+struct MacLiveCommands: Commands {
+    @ObservedObject var live: MacLiveController
+    var body: some Commands {
+        CommandMenu("Live") {
+            Button("Open Live Task") { live.show() }.keyboardShortcut("l", modifiers: [.command, .shift])
+            Button("Complete Live Task") { live.complete() }
+                .disabled(live.note == nil || live.completing)
         }
     }
 }

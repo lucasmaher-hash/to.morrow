@@ -4,12 +4,16 @@ set -euo pipefail
 draft_root="$(cd "$(dirname "$0")/.." && pwd)"
 build_root="/private/tmp/tomorrow-mac-icloud"
 app_path="${1:-$HOME/Applications/to.morrow.app}"
+if [[ -e "$app_path" ]]; then
+  echo "Refusing to overwrite an existing app: $app_path. Choose a new output path." >&2
+  exit 1
+fi
 python3 "$draft_root/scripts/generate-xcode-project.py"
 xcodebuild -project "$draft_root/TomorrowMac.xcodeproj" -scheme TomorrowMac \
   -configuration Release -destination "platform=macOS,arch=$(uname -m)" \
   -derivedDataPath "$build_root" -allowProvisioningUpdates \
   -allowProvisioningDeviceRegistration build
 mkdir -p "$(dirname "$app_path")"
-ditto "$build_root/Build/Products/Release/TomorrowMac.app" "$app_path"
+ditto "$build_root/Build/Products/Release/to.morrow.app" "$app_path"
 codesign --verify --deep --strict "$app_path"
 echo "$app_path"

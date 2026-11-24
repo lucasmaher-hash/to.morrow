@@ -117,8 +117,9 @@ import Shove95Kit
         guard !fm.fileExists(atPath: backup.appendingPathComponent("complete").path) else { return }
         try fm.createDirectory(at: backup, withIntermediateDirectories: true)
         // Before the store is opened, include SQLite sidecars and external assets.
+        let storeStem = url.deletingPathExtension().lastPathComponent
         for source in try fm.contentsOfDirectory(at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil)
-        where source.lastPathComponent.hasPrefix(url.lastPathComponent) || source.lastPathComponent.hasPrefix("." + url.lastPathComponent) {
+        where source.lastPathComponent.hasPrefix(storeStem) || source.lastPathComponent.hasPrefix("." + storeStem) {
             let destination = backup.appendingPathComponent(source.lastPathComponent)
             if !fm.fileExists(atPath: destination.path) { try fm.copyItem(at: source, to: destination) }
         }

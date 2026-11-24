@@ -38,6 +38,9 @@ import Shove95Kit
         for name in [store.lastPathComponent, store.lastPathComponent + "-wal", "." + store.lastPathComponent + "_SUPPORT"] {
             try Data(name.utf8).write(to: dir.appendingPathComponent(name))
         }
+        let assets = dir.appendingPathComponent(".TomorrowMacDraft_SUPPORT/_EXTERNAL_DATA")
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        try Data("photo bytes".utf8).write(to: assets.appendingPathComponent("photo"))
         try MacCloudStore.backupBeforeFirstSync(at: store)
         try Data("changed".utf8).write(to: store)
         try MacCloudStore.backupBeforeFirstSync(at: store)
@@ -45,6 +48,7 @@ import Shove95Kit
         #expect(try Data(contentsOf: backup.appendingPathComponent(store.lastPathComponent)) == Data(store.lastPathComponent.utf8))
         #expect(FileManager.default.fileExists(atPath: backup.appendingPathComponent(store.lastPathComponent + "-wal").path))
         #expect(FileManager.default.fileExists(atPath: backup.appendingPathComponent("." + store.lastPathComponent + "_SUPPORT").path))
+        #expect(try Data(contentsOf: backup.appendingPathComponent(".TomorrowMacDraft_SUPPORT/_EXTERNAL_DATA/photo")) == Data("photo bytes".utf8))
     }
     @Test func workspaceSeedsConvergeWithoutDeletingRecords() {
         let old = Workspace(id: Workspace.defaultID, name: "Mine", createdAt: .distantPast)
