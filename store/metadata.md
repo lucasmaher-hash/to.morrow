@@ -145,3 +145,17 @@ separately-sized ones.
 - **Export compliance:** the app uses no encryption beyond HTTPS/iCloud, so the
   answer to "does your app use encryption?" is the standard exempt path.
 - **Copyright:** `2026 Lucas Maher`
+
+---
+
+## Version 1.4 — What's New  *(4000 max)*  — draft 2026-11-24
+
+```
+- Flatter task checkboxes and updated Live controls.
+- The Live task stays linked to Today: completing it ends the Lock Screen card.
+- The Lock Screen card is restored when you reopen the app. iOS ends Live Activities after at most 8 hours.
+- Fixes for reordering and moving tasks between lists.
+```
+
+Reviewer notes: no account or login needed. iCloud sync is optional.
+Verify the wording against the build before submitting.
