@@ -82,9 +82,13 @@ pending. Release generation now explicitly uses `dwarf-with-dsym` for future
 archives. The uploaded executable and version/build were not replaced.
 
 **Store page verified:** native macOS 1.0 is Prepare for Submission with five selected
-2880x1800 lossless Mac screenshots, copied current iOS metadata, shared privacy URL, Mac review
+2880x1800 lossless Mac screenshots, Mac-specific description/promotional text/keywords,
+shared privacy URL, Mac review
 notes and build 1.0 (1) saved. Lucas signed in himself. No agent-entered credentials
 or iOS listing edits. TestFlight shows Ready to Submit.
+The saved English copy is recorded in `../store/metadata-macos.md`; it describes
+dragging and the menu-bar Live panel rather than iPhone swipes/Lock Screen behavior.
+Lucas will provide an optional reviewer recording for attachment; none uploaded yet.
 
 **Release choice:** Lucas selected automatic release after approval for Mac 1.0
 on 24 November, replacing the earlier manual-release instruction. The Mac choice

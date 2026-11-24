@@ -12,7 +12,7 @@ release metadata and privacy manifest are present. Universal archive and App Sto
 export succeeded. Lucas reported all local checks passed and explicitly
 authorized upload. Mac 1.0 (1) uploaded successfully; Apple reported processing.
 The native Mac platform page is now saved with build 1.0 (1), five selected full-resolution screenshots
-and copied metadata. Lucas selected automatic release after approval. Exact-build
+and Mac-specific description, promotional text and keywords. Lucas selected automatic release after approval. Exact-build
 TestFlight testing and Add for Review remain his next steps. See the dated Mac evidence below.
 
 ## Recommended next order
@@ -251,8 +251,9 @@ The existing iOS target/version/listing were left untouched.
   the menu-bar popover retains its black status bar. All images have restrained
   sharpening, with original source screenshots preserved. The remote gallery
   showed six after replacement; it now shows 5 of 10 App Screenshots after
-  Lucas's removal. Description, keywords,
-  support and marketing URLs match the current iOS listing exactly. Shared
+  Lucas's removal. Description, promotional text and keywords now describe Mac
+  dragging, the menu-bar Live panel, workspaces and Photos/Files import; see
+  `store/metadata-macos.md`. Support and marketing URLs retain the copied iOS values. Shared
   privacy URL is `https://lucasmaher-hash.github.io/to.morrow/privacy.html` and
   Data Not Collected remains unchanged. Reviewer notes cover no login, optional
   iCloud, first-launch migration choice, menu-bar Live and Cmd-Shift-L.
@@ -310,6 +311,23 @@ The existing iOS target/version/listing were left untouched.
   unchanged metadata and automatic release still set.
 - [x] **verified — scope:** native macOS 1.0 only. No iOS screenshot/listing edits,
   no new binary upload, no Add for Review or agreement acceptance.
+
+## Mac listing copy correction — 24 November 2026
+
+- [x] **sent and verified — Mac-specific public copy:** saved the English (U.S.)
+  description (911/4000 characters), promotional text (150/170) and keywords
+  (84/100) for macOS 1.0. Replaced iPhone swipe/Lock Screen claims with dragging
+  between lists, the Mac menu-bar Live panel and Cmd-Shift-L. The description also
+  covers workspaces, Photos/Files attachments, offline use and optional private
+  iCloud sync. Exact saved copy is in `store/metadata-macos.md`.
+- [x] **verified — persistence and scope:** reloaded the Mac version and compared
+  all three fields byte-for-byte. Save is disabled. Five screenshots and their
+  order, build 1.0 (1), URLs, reviewer notes and automatic release remain selected.
+  No iOS listing or target changes and no Add for Review/Submit for Review action.
+- [ ] **prepared — reviewer recording attachment:** Lucas will make a recording;
+  he authorized attaching it to the Mac App Review Information when supplied.
+  No recording has been uploaded yet. This is a reviewer attachment, not a public
+  App Preview. Review submission remains Lucas's action.
 
 Warnings/errors recorded during preparation:
 
