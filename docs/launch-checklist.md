@@ -9,8 +9,10 @@ App Store Connect shows "Waiting for Review". Lucas confirmed sync and tested
 the build on his iPhone; 44 iOS tests passed. iOS Phase 0/1 items are done.
 Mac 1.0 (1) is prepared on `mac/app-store-1.0`: shared bundle ID, App Sandbox,
 release metadata and privacy manifest are present. Universal archive and App Store
-export succeeded. No Mac build has been uploaded; native macOS listing and
-TestFlight/device checks remain open. See the dated Mac evidence below.
+export succeeded. Lucas reported all local checks passed and explicitly
+authorized upload. Mac 1.0 (1) uploaded successfully; Apple reported processing.
+The native Mac listing and processed-build TestFlight checks remain open because
+App Store Connect requires Lucas to sign in. See the dated Mac evidence below.
 
 ## Recommended next order
 
@@ -53,7 +55,7 @@ Legend: 🤖 agent can prepare/verify; 🧑 Lucas makes the product/account deci
 | Current source iOS/extension versions | Both still 1.3 (8) |
 | Native macOS listing under existing app | Absent; Distribution/TestFlight show iOS only |
 | Mac source identity | com.lucasmaher.shove95; 1.0 (1); “to.morrow”; minimum macOS 26.0 |
-| Mac App Sandbox | Verified in exported app signature with network client and user-selected read-only files; visible picker/device checks open |
+| Mac App Sandbox | Signature permissions verified; Lucas reported all requested local checks passed on 24 November; exact processed TestFlight build still pending |
 | Mac category | public.app-category.productivity in archive/export; category warning absent |
 | iOS packaged privacy manifest / icon / font license | Present |
 | Mac packaged icon / font license | AppIcon.icns and W95FA-LICENSE.txt present |
@@ -139,7 +141,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   **You'll know it worked when:** the intended Mac platform/listing exists and the
   Xcode target uses the matching, deliberately chosen ID.
 
-- [ ] 🤖 **Enable and test App Sandbox** — estimate 2–4 hours including migration
+- [x] 🤖 **Enable and test App Sandbox** — estimate 2–4 hours including migration
   and CloudKit testing; more if issues arise. Sandboxing is required for Mac App
   Store apps. Add only needed network/file entitlements, preserve existing draft
   data and local-only edits, and test CloudKit/remote notifications in the sandbox.
@@ -190,7 +192,8 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
 ## Native Mac candidate evidence — 24 November 2026
 
 Status vocabulary: **prepared** = implementation/assets available; **verified** =
-observed by a stated check; **sent** = uploaded/submitted. No Mac build is sent.
+observed by a stated check; **sent** = uploaded/submitted. Mac 1.0 (1) is sent;
+no Mac review submission has been made.
 The existing iOS target/version/listing were left untouched.
 
 - [x] **verified — identity:** generator and regenerated project use
@@ -223,13 +226,17 @@ The existing iOS target/version/listing were left untouched.
   strictly; production entitlements were inspected in the expanded package.
 - [x] **verified — final candidate Apple validation:** validate-only succeeded
   for source commit `b60fe57` at 11:35 CET. Xcode recorded “Validation succeeded”,
-  empty validation errors/warnings and `uploadEvent=(null)`. No build was uploaded.
-- [ ] **prepared — visible sandbox checks:** first-launch backup picker,
-  persistence after relaunch, Photos/Files import, menu-bar Live behavior and
-  iPhone round trips remain open. Native UI automation timed out for both the
-  app and Xcode. No physical iPhone was connected. Lucas explicitly chose to
-  leave these device checks for his TestFlight test.
-- [ ] **sent — upload:** requires Lucas's explicit `go`; no upload performed.
+  empty validation errors/warnings and `uploadEvent=(null)`. This action did not
+  upload a build; the later authorized upload is recorded below.
+- [x] **verified by Lucas — local sandbox checks:** Lucas reported “tested all”
+  on 24 November, covering the requested local migration/persistence, Photos/Files,
+  Live and sync checks. This is user-reported evidence, not a new automated visual
+  pass. The exact processed TestFlight build has not yet been checked here.
+- [x] **sent — upload:** Lucas explicitly approved “Go: upload and prepare the
+  Mac listing”. Xcode uploaded native macOS 1.0 (1) successfully and returned
+  `EXPORT SUCCEEDED`; Apple reported “Uploaded package is processing”. No new
+  version/build was created and no iOS build was uploaded. Processing completion
+  and build selection still require App Store Connect access.
 - [ ] **prepared — native Mac listing:** screenshot files verified from commit
   `e5be044`: `store/screenshots/macos/01-plan-your-day.jpg`,
   `02-switch-workspaces.jpg`, `03-make-it-yours.jpg`. After upload and Lucas's go,
@@ -239,6 +246,30 @@ The existing iOS target/version/listing were left untouched.
   no app login; optional iCloud; Live is a menu-bar panel, opened by clicking the
   status item or Cmd-Shift-L. Select 1.0 (1), choose manual release and stop before
   Add for Review. Do not accept agreements or sign in for Lucas.
+
+## Upload follow-up — 24 November 2026
+
+- [x] **sent — native Mac 1.0 (1):** uploaded candidate source `b60fe57`; original
+  package hash and versions were verified before upload. No App Review action.
+- [x] **verified — matching crash symbols recovered locally:** upload emitted
+  “Upload Symbols Failed” because the original archive had no dSYM. Recovered
+  full symbols from retained unstripped linker outputs, verified both uploaded
+  binary UUIDs and 335 compile units, and added them to the local archive and a
+  separate dSYM ZIP. The first attempt against the stripped archive executable
+  contained no debug info and was discarded from deliverables.
+- [x] **verified — future Release setting:** generator now resolves Release
+  `DEBUG_INFORMATION_FORMAT=dwarf-with-dsym`; Debug remains `dwarf`. This setting
+  does not alter or replace the already uploaded build.
+- [ ] **prepared — upload recovered symbols:** matching symbols are local only;
+  their presence in App Store Connect is not verified.
+- [ ] **blocked — App Store Connect browser access:** Chrome is running but not
+  available to browser tools. Lucas authorized the in-app browser as fallback.
+  It reached Apple's login page (`authResult=FAILED`), so work stopped as required.
+  No password entered, no login performed and no listing fields changed. The
+  browser page is kept for Lucas. Resume after Lucas signs in himself.
+- [ ] **verify — processing / TestFlight:** upload success is established;
+  processing completion, native Mac platform record and build selection are not.
+  Lucas should test the exact processed build before Add for Review.
 
 Warnings/errors recorded during preparation:
 
@@ -252,14 +283,16 @@ Warnings/errors recorded during preparation:
 4. Concurrent export/validation generated the same logging-bundle filename
    (Cocoa error 516). Xcode fell back to inline logging; both operations still
    succeeded, and the final validation event has empty errors/warnings.
-5. Native automation `timeoutReached` is unresolved. It also occurs for Xcode;
+5. Upload warning: missing dSYM for the uploaded arm64/x86_64 UUIDs. Matching
+   full symbols were recovered locally; Apple has not received those symbols yet.
+6. Native automation `timeoutReached` is unresolved. It also occurs for Xcode;
    do not infer visual app behavior or a hang from that timeout. Only process
    startup, signatures, automated tests and packaging are established.
 
 Release evidence is kept with the private local release outputs, including the
 backup manifest, final test/archive/export/validation logs and package checksums.
-Physical device/TestFlight checks, processed-build selection, Add for Review and
-manual release remain Lucas's release gates. No store, photo or original app was
+Lucas reported the local device checks passed. Exact processed-build TestFlight
+testing, build selection, Add for Review and manual release remain release gates. No store, photo or original app was
 deleted or replaced.
 
 ## Authoritative references

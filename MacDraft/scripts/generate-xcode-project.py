@@ -33,6 +33,7 @@ for config,env,aps in [('Debug','Development','development'),('Release','Product
         DEVELOPMENT_TEAM = 35875F7J33; CODE_SIGN_STYLE = Automatic; CODE_SIGN_IDENTITY = "Apple Development";
         ICLOUD_ENVIRONMENT = {env}; APS_ENVIRONMENT = {aps};
         SWIFT_OPTIMIZATION_LEVEL = "{'-Onone' if config=='Debug' else '-O'}";
+        DEBUG_INFORMATION_FORMAT = "{'dwarf' if config=='Debug' else 'dwarf-with-dsym'}";
         SWIFT_ACTIVE_COMPILATION_CONDITIONS = "{'DEBUG' if config=='Debug' else ''}";
         LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
         ENABLE_HARDENED_RUNTIME = YES; ENABLE_APP_SANDBOX = YES; COMBINE_HIDPI_IMAGES = NO;

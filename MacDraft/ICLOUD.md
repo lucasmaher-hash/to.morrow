@@ -64,5 +64,7 @@ Mac upload alone does not verify receipt by a physical iPhone.
 Release export verifies Production CloudKit, production push, App Sandbox,
 outgoing network and read-only user-selected file entitlements; get-task-allow
 is absent. Only the Mac target changed. 34 Mac tests passed. This does not prove
-physical iPhone delivery or sandbox picker behavior. Lucas deferred the real
-device checks to his TestFlight test. No new build has been uploaded.
+physical iPhone delivery or sandbox picker behavior by itself. Lucas subsequently
+reported all local checks passed and approved upload. Native Mac 1.0 (1) uploaded
+successfully; processing completion and the exact TestFlight build are unverified.
+App Store Connect browser work stopped at login; no credentials were entered.

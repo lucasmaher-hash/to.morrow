@@ -2,7 +2,8 @@
 
 Native SwiftUI companion to the iPhone app, sharing the `Shove95Kit` models.
 Mac App Store candidate: **1.0 (1)**, bundle ID `com.lucasmaher.shove95`.
-Minimum macOS **26.0**, universal arm64/x86_64. No build has been uploaded.
+Minimum macOS **26.0**, universal arm64/x86_64. Build 1.0 (1) was uploaded after
+Lucas's explicit go; Apple reported processing. No review submission.
 
 ## Features
 
@@ -68,15 +69,21 @@ universal Release archive and App Store distribution export succeeded. Apple
 validate-only also succeeded for final source commit `b60fe57`, with no validation
 errors/warnings or upload event. Evidence is in `../docs/launch-checklist.md`.
 
-**Open:** visible sandbox migration/persistence, Photos/Files picker import,
-menu-bar behavior and physical iPhone sync under sandbox. Native app UI automation
-timed out for both this app and Xcode. Lucas chose to leave device checks for his
-TestFlight test. Automated tests do not establish end-to-end CloudKit delivery.
+**User verification:** Lucas reported all requested local checks passed on
+24 November. Native UI automation did not independently verify them. The exact
+processed TestFlight build remains a separate check after processing.
 No store, original photo, iOS target or iOS listing was reset or changed.
 
-Uploading requires Lucas's explicit `go`. Adding macOS to the existing listing,
-selecting 1.0 (1), manual release and App Review remain separate steps. Do not
-click Add for Review or accept agreements as part of preparation.
+**Upload:** native Mac 1.0 (1) uploaded successfully. Xcode warned that its archive
+lacked a dSYM. Full symbols matching both uploaded UUIDs were recovered locally
+from retained linker outputs and packaged separately; their upload is still
+pending. Release generation now explicitly uses `dwarf-with-dsym` for future
+archives. The uploaded executable and version/build were not replaced.
+
+**Blocked:** App Store Connect requires Lucas to sign in. No credentials were
+entered. Adding macOS, copying current iOS metadata, selecting 1.0 (1), manual
+release and exact-build TestFlight checks remain pending. Stop before Add for
+Review; Lucas handles submission and any agreements.
 
 ## Assets
 
