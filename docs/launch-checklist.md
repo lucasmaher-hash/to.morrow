@@ -324,10 +324,17 @@ The existing iOS target/version/listing were left untouched.
   all three fields byte-for-byte. Save is disabled. Five screenshots and their
   order, build 1.0 (1), URLs, reviewer notes and automatic release remain selected.
   No iOS listing or target changes and no Add for Review/Submit for Review action.
-- [ ] **prepared — reviewer recording attachment:** Lucas will make a recording;
-  he authorized attaching it to the Mac App Review Information when supplied.
-  No recording has been uploaded yet. This is a reviewer attachment, not a public
-  App Preview. Review submission remains Lucas's action.
+- [x] **sent and verified — reviewer recording attachment:** Lucas supplied
+  `Screen Recording 2026-11-24 at 12.36.13.mov` and authorized its use. Preserved
+  the original and uploaded an identical durable copy named
+  `to.morrow-Mac-review-demo-2026-11-24.mov` to Mac App Review Information.
+  H.264 MOV, 2940x2056, 101.265 seconds, 83,482,050 bytes; SHA-256
+  `66fdc6a870fb7343a00975056a73af559e20005e1e70867c1fe6671f24d8e96b`.
+  Processing finished and the filename remained present after page reload, with
+  Save disabled. This is a reviewer attachment, not a public App Preview.
+  The Mac version remains Prepare for Submission with automatic release selected;
+  review submission remains Lucas's action. The private recording is retained
+  with local release outputs and is not committed to the repository.
 
 Warnings/errors recorded during preparation:
 

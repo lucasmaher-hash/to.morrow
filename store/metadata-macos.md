@@ -57,4 +57,6 @@ todo,task,checklist,planner,productivity,menubar,focus,drag,workspace,offline,ph
 - Release: automatically after approval, as chosen by Lucas.
 - Five screenshots, preserving Lucas’s removal and order.
 - Reviewer notes unchanged: no login, optional iCloud, migration choices and menu-bar Live instructions.
-- Reviewer recording: awaiting Lucas’s file; authorized for the reviewer attachment only.
+- Reviewer recording: `to.morrow-Mac-review-demo-2026-11-24.mov`, uploaded and
+  verified after processing and page reload. Attached to Mac App Review
+  Information only, not the public App Previews gallery. No review submission.

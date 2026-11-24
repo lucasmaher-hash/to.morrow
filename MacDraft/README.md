@@ -88,7 +88,9 @@ notes and build 1.0 (1) saved. Lucas signed in himself. No agent-entered credent
 or iOS listing edits. TestFlight shows Ready to Submit.
 The saved English copy is recorded in `../store/metadata-macos.md`; it describes
 dragging and the menu-bar Live panel rather than iPhone swipes/Lock Screen behavior.
-Lucas will provide an optional reviewer recording for attachment; none uploaded yet.
+Lucas's reviewer recording was uploaded as
+`to.morrow-Mac-review-demo-2026-11-24.mov`; processing completion and persistence
+after reload were verified. It is attached to Mac App Review Information only.
 
 **Release choice:** Lucas selected automatic release after approval for Mac 1.0
 on 24 November, replacing the earlier manual-release instruction. The Mac choice
