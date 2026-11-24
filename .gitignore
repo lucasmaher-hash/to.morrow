@@ -29,3 +29,6 @@ DerivedData/
 
 # Native Mac app resource referenced by the generated Xcode project
 !MacDraft/Assets/AppIcon-macos-1024.png
+
+# Approved full-resolution native Mac listing images
+!store/screenshots/macos/2026-11-24-refined/*.png

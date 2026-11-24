@@ -81,8 +81,8 @@ from retained linker outputs and packaged separately; their upload is still
 pending. Release generation now explicitly uses `dwarf-with-dsym` for future
 archives. The uploaded executable and version/build were not replaced.
 
-**Store page verified:** native macOS 1.0 is Prepare for Submission with three
-Mac screenshots, copied current iOS metadata, shared privacy URL, Mac review
+**Store page verified:** native macOS 1.0 is Prepare for Submission with six
+2880x1800 lossless Mac screenshots, copied current iOS metadata, shared privacy URL, Mac review
 notes and build 1.0 (1) saved. Lucas signed in himself. No agent-entered credentials
 or iOS listing edits. TestFlight shows Ready to Submit.
 
