@@ -66,5 +66,8 @@ outgoing network and read-only user-selected file entitlements; get-task-allow
 is absent. Only the Mac target changed. 34 Mac tests passed. This does not prove
 physical iPhone delivery or sandbox picker behavior by itself. Lucas subsequently
 reported all local checks passed and approved upload. Native Mac 1.0 (1) uploaded
-successfully; processing completion and the exact TestFlight build are unverified.
-App Store Connect browser work stopped at login; no credentials were entered.
+successfully. After Lucas signed in himself, App Store Connect confirmed Binary
+State Validated and the build was saved in native macOS version 1.0. TestFlight
+shows Ready to Submit; the exact processed-build test remains Lucas's next step.
+The Mac draft uses automatic release after approval at Lucas's request. No
+agent-entered credentials, iOS changes or review submission.

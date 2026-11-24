@@ -3,7 +3,8 @@
 Native SwiftUI companion to the iPhone app, sharing the `Shove95Kit` models.
 Mac App Store candidate: **1.0 (1)**, bundle ID `com.lucasmaher.shove95`.
 Minimum macOS **26.0**, universal arm64/x86_64. Build 1.0 (1) was uploaded after
-Lucas's explicit go; Apple reported processing. No review submission.
+Lucas's explicit go and is now Validated and selected in the Mac 1.0 draft.
+No review submission.
 
 ## Features
 
@@ -80,10 +81,16 @@ from retained linker outputs and packaged separately; their upload is still
 pending. Release generation now explicitly uses `dwarf-with-dsym` for future
 archives. The uploaded executable and version/build were not replaced.
 
-**Blocked:** App Store Connect requires Lucas to sign in. No credentials were
-entered. Adding macOS, copying current iOS metadata, selecting 1.0 (1), manual
-release and exact-build TestFlight checks remain pending. Stop before Add for
-Review; Lucas handles submission and any agreements.
+**Store page verified:** native macOS 1.0 is Prepare for Submission with three
+Mac screenshots, copied current iOS metadata, shared privacy URL, Mac review
+notes and build 1.0 (1) saved. Lucas signed in himself. No agent-entered credentials
+or iOS listing edits. TestFlight shows Ready to Submit.
+
+**Release choice:** Lucas selected automatic release after approval for Mac 1.0
+on 24 November, replacing the earlier manual-release instruction. The Mac choice
+was saved; iOS release settings remain unchanged. Lucas still tests the exact
+processed TestFlight build on his Mac and clicks Add for Review himself.
+The agent stops before Add for Review and any agreement acceptance.
 
 ## Assets
 

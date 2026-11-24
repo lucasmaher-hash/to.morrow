@@ -11,8 +11,9 @@ Mac 1.0 (1) is prepared on `mac/app-store-1.0`: shared bundle ID, App Sandbox,
 release metadata and privacy manifest are present. Universal archive and App Store
 export succeeded. Lucas reported all local checks passed and explicitly
 authorized upload. Mac 1.0 (1) uploaded successfully; Apple reported processing.
-The native Mac listing and processed-build TestFlight checks remain open because
-App Store Connect requires Lucas to sign in. See the dated Mac evidence below.
+The native Mac platform page is now saved with build 1.0 (1), three screenshots
+and copied metadata. Lucas selected automatic release after approval. Exact-build
+TestFlight testing and Add for Review remain his next steps. See the dated Mac evidence below.
 
 ## Recommended next order
 
@@ -27,8 +28,9 @@ App Store Connect requires Lucas to sign in. See the dated Mac evidence below.
    builds through TestFlight on the physical iPhone and Mac. Verify photo sync,
    in-place changes and offline recovery without resetting stores.
 5. Complete each platform's screenshots, release notes and review information,
-   select the tested builds and submit for review. Manual release can retain a
-   final publication decision after Apple approves.
+   select the tested builds and submit for review. For native Mac 1.0, Lucas
+   selected automatic release after approval on 24 November. Leave the existing
+   iOS release setting unchanged.
 
 These are preparation steps, not changes already applied. The guide below marks
 who does each step and what counts as verification.
@@ -49,11 +51,11 @@ Legend: 🤖 agent can prepare/verify; 🧑 Lucas makes the product/account deci
 | Mac tests | 34 passed on 24 November, including two migration tests and real external-photo backup coverage |
 | Shared model tests | 60 passed, 0 failures |
 | Release iOS archive | Succeeded, signing disabled for audit |
-| Mac builds | Unsigned audit archive succeeded 7 November; current development-signed universal Release build succeeds |
-| Distribution signing / Apple upload validation | Not performed; archives above are not upload-ready signed packages |
+| Mac builds | Universal Release 1.0 (1) uploaded; App Store Connect reports Validated and build is selected in macOS version 1.0 |
+| Distribution signing / Apple upload validation | Native Mac archive/export/validation/upload verified 24 November; iOS was not re-audited in this Mac-only task |
 | Public/Connect iOS version | 1.3, build 8, Ready for Distribution |
 | Current source iOS/extension versions | Both still 1.3 (8) |
-| Native macOS listing under existing app | Absent; Distribution/TestFlight show iOS only |
+| Native macOS listing under existing app | macOS 1.0 Prepare for Submission; three screenshots, metadata, review notes and 1.0 (1) saved; automatic release after approval |
 | Mac source identity | com.lucasmaher.shove95; 1.0 (1); “to.morrow”; minimum macOS 26.0 |
 | Mac App Sandbox | Signature permissions verified; Lucas reported all requested local checks passed on 24 November; exact processed TestFlight build still pending |
 | Mac category | public.app-category.productivity in archive/export; category warning absent |
@@ -133,7 +135,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
 
 ## Phase 2 — macOS App Store preparation
 
-- [ ] 🧑 **Choose the store identity** — estimate 10 minutes. Recommended: add native
+- [x] 🧑 **Choose the store identity** — estimate 10 minutes. Recommended: add native
   macOS to the existing to.morrow listing so it is one product across devices.
   Apple's multi-platform listing requires the same bundle ID: `com.lucasmaher.shove95`.
   The current `.macdraft` ID would require a separate listing instead. Do not change
@@ -162,7 +164,7 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   and preview packaging include `PrivacyInfo.xcprivacy`, matching iOS disclosures
   and naming actual Mac settings/migration use. Archive and exported app contain it.
 
-- [ ] 🤝 **Build the Mac store page** — estimate 1–2 hours. Add Mac screenshots,
+- [x] 🤝 **Build the Mac store page** — estimate 1–2 hours. Add Mac screenshots,
   platform description/keywords, privacy/support URLs, release/reviewer notes,
   age-rating/privacy answers and availability. Recheck any existing iOS-app-on-Mac
   availability: the public iOS listing already offers that Apple Silicon version;
@@ -185,9 +187,11 @@ Archives: `/private/tmp/tomorrow-release-audit-ios.xcarchive` and
   testing plus Apple's variable processing/review time. Test the processed builds
   on the real devices and confirm production CloudKit works. Check account
   agreements/tax/compliance status if Apple prompts; Lucas handles legal acceptance.
-  Keep manual release selected if Lucas wants a final release decision.
+  For native Mac 1.0, use Lucas's selected automatic release after approval.
+  Leave the iOS release setting unchanged.
   **You'll know it worked when:** each platform reaches Waiting for Review, then
-  approval; manual approval still needs the separate Release action.
+  approval. Native Mac 1.0 is configured to release automatically after approval;
+  no separate manual Release action is planned for that version.
 
 ## Native Mac candidate evidence — 24 November 2026
 
@@ -199,7 +203,7 @@ The existing iOS target/version/listing were left untouched.
 - [x] **verified — identity:** generator and regenerated project use
   `com.lucasmaher.shove95`, team `35875F7J33`. CloudKit container is unchanged:
   `iCloud.com.lucasmaher.shove95`. Regeneration is byte-identical.
-  The Phase 2 identity checkbox remains open until the Mac platform exists.
+  The native macOS platform now exists under App Store Connect app 6798337661.
 - [x] **verified — backup before ID change:** dated, private offline backup with
   a SHA-256 manifest, 13 files / 7,498,298 bytes. Includes store/WAL/SHM,
   `.TomorrowMacDraft_SUPPORT`, CloudKit asset directory, previous pre-sync backup,
@@ -236,16 +240,25 @@ The existing iOS target/version/listing were left untouched.
   Mac listing”. Xcode uploaded native macOS 1.0 (1) successfully and returned
   `EXPORT SUCCEEDED`; Apple reported “Uploaded package is processing”. No new
   version/build was created and no iOS build was uploaded. Processing completion
-  and build selection still require App Store Connect access.
-- [ ] **prepared — native Mac listing:** screenshot files verified from commit
-  `e5be044`: `store/screenshots/macos/01-plan-your-day.jpg`,
-  `02-switch-workspaces.jpg`, `03-make-it-yours.jpg`. After upload and Lucas's go,
-  use Chrome to add macOS to app 6798337661. Copy current iOS description,
-  keywords and support/marketing/privacy URLs by reading the listing then; local
-  `store/metadata.md` is historical and must not be assumed current. Review notes:
-  no app login; optional iCloud; Live is a menu-bar panel, opened by clicking the
-  status item or Cmd-Shift-L. Select 1.0 (1), choose manual release and stop before
-  Add for Review. Do not accept agreements or sign in for Lucas.
+  was subsequently verified: Binary State Validated, build 1.0 (1) selected.
+- [x] **verified — native Mac listing:** macOS 1.0 exists under app 6798337661
+  with state Prepare for Submission. Three 1280x800 screenshots from commit
+  `e5be044` are saved in order: `01-plan-your-day.jpg`,
+  `02-switch-workspaces.jpg`, `03-make-it-yours.jpg`. Description, keywords,
+  support and marketing URLs match the current iOS listing exactly. Shared
+  privacy URL is `https://lucasmaher-hash.github.io/to.morrow/privacy.html` and
+  Data Not Collected remains unchanged. Reviewer notes cover no login, optional
+  iCloud, first-launch migration choice, menu-bar Live and Cmd-Shift-L.
+  Build 1.0 (1) is selected. Saved values were checked after reload.
+- [x] **verified — Mac release mode:** Lucas changed his instruction to
+  **Automatically release this version** after approval on 24 November. The
+  selected radio was saved for Mac 1.0 and verified again after reload. This replaces the earlier manual-release
+  instruction for this Mac version only. iOS release settings were not changed.
+- [ ] **Lucas — exact-build TestFlight test and Add for Review:** TestFlight
+  reports Ready to Submit and Binary State Validated; existing internal groups
+  are attached. No tester groups/invitations were changed. Lucas still tests the
+  processed build on his Mac and clicks Add for Review himself. The agent did not
+  click Add for Review or accept any agreement.
 
 ## Upload follow-up — 24 November 2026
 
@@ -262,14 +275,17 @@ The existing iOS target/version/listing were left untouched.
   does not alter or replace the already uploaded build.
 - [ ] **prepared — upload recovered symbols:** matching symbols are local only;
   their presence in App Store Connect is not verified.
-- [ ] **blocked — App Store Connect browser access:** Chrome is running but not
-  available to browser tools. Lucas authorized the in-app browser as fallback.
-  It reached Apple's login page (`authResult=FAILED`), so work stopped as required.
-  No password entered, no login performed and no listing fields changed. The
-  browser page is kept for Lucas. Resume after Lucas signs in himself.
-- [ ] **verify — processing / TestFlight:** upload success is established;
-  processing completion, native Mac platform record and build selection are not.
-  Lucas should test the exact processed build before Add for Review.
+- [x] **verified — App Store Connect access resumed:** Lucas signed in himself
+  and said continue. The authorized in-app browser was used because Chrome was
+  unavailable to browser tooling. No agent-entered credentials.
+- [x] **verified — processing/build selection:** Binary State Validated; native
+  Mac version/build 1.0 (1), minimum macOS 26.0, x86_64 and arm64, production
+  CloudKit/push and sandbox entitlements all visible in App Store Connect. The
+  build was selected and saved in the Mac 1.0 version. TestFlight shows Ready to
+  Submit with existing internal groups day ones and windows version.
+- [ ] **prepared — crash symbols upload:** App Store Connect still reports
+  Includes Symbols: No. Matching recovered dSYMs remain local; there is no
+  symbol-upload control on the inspected build metadata page.
 
 Warnings/errors recorded during preparation:
 
@@ -285,14 +301,18 @@ Warnings/errors recorded during preparation:
    succeeded, and the final validation event has empty errors/warnings.
 5. Upload warning: missing dSYM for the uploaded arm64/x86_64 UUIDs. Matching
    full symbols were recovered locally; Apple has not received those symbols yet.
-6. Native automation `timeoutReached` is unresolved. It also occurs for Xcode;
+6. App Store Connect also displays existing shared notices about age-rating
+   answers (15 January 2027) and China mainland compliance (31 January 2027).
+   Those shared settings were not changed; no legal acceptance was performed.
+7. Native automation `timeoutReached` is unresolved. It also occurs for Xcode;
    do not infer visual app behavior or a hang from that timeout. Only process
    startup, signatures, automated tests and packaging are established.
 
 Release evidence is kept with the private local release outputs, including the
 backup manifest, final test/archive/export/validation logs and package checksums.
 Lucas reported the local device checks passed. Exact processed-build TestFlight
-testing, build selection, Add for Review and manual release remain release gates. No store, photo or original app was
+testing and Add for Review remain Lucas's release gates. Mac 1.0 is configured
+for automatic release after approval. No store, photo or original app was
 deleted or replaced.
 
 ## Authoritative references
